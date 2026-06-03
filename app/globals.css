@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8f7ff;
+  --bg-elev: #ffffff;
+  --text: #1a1730;
+  --text-soft: #5a5478;
+  --line: #e5e0f5;
+  --brand: #6429f5;
+}
+
+.dark {
+  --bg: #0c0a1a;
+  --bg-elev: #161333;
+  --text: #f3f1ff;
+  --text-soft: #b3acd9;
+  --line: #2a224a;
+  --brand: #9276ff;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Skill node hover ring */
+.skill-glow {
+  filter: drop-shadow(0 0 8px rgba(146, 118, 255, 0.55));
+}
+
+/* Compact scrollbar on mobile */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(116, 73, 255, 0.35);
+  border-radius: 3px;
+}
