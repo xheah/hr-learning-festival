@@ -6,8 +6,13 @@ export interface Category {
   id: CategoryId;
   name: string;
   short: string;
-  color: string; // tailwind-ish hex
+  /** Main sector colour — used for borders, acquired skill fills, highlights. */
+  color: string;
+  /** Soft tint used as the label / chip background. */
   accent: string;
+  /** Dark sector variant used for text and icons placed on the accent fill,
+   *  so we don't trip on low contrast. */
+  darkColor: string;
   icon: LucideIcon;
 }
 

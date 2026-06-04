@@ -17,6 +17,8 @@ interface AnchorInfo {
   id: string;
   angle: number;
   color: string;
+  accent: string;
+  darkColor: string;
   name: string;
   icon: LucideIcon;
 }
@@ -34,6 +36,8 @@ function buildLayout(): { nodes: SkillNode[]; anchors: AnchorInfo[] } {
       id: cat.id,
       angle: anchorAngle,
       color: cat.color,
+      accent: cat.accent,
+      darkColor: cat.darkColor,
       name: cat.short,
       icon: cat.icon,
     });
@@ -107,7 +111,7 @@ export default function SkillTree({
 
   return (
     <svg
-      viewBox="-455 -455 910 910"
+      viewBox="-470 -470 940 940"
       className="w-full h-full select-none"
       preserveAspectRatio="xMidYMid meet"
       onClick={() => onSelectSkill?.(null)}
@@ -159,11 +163,12 @@ export default function SkillTree({
         />
       ))}
 
-      {/* Category labels around the outer edge — pushed well clear of the tier 3 ring.
-       *  Each label is a card: rounded rect with the sector colour as a heavy stroke
-       *  plus a soft drop shadow for depth. */}
+      {/* Category labels around the outer edge — pushed well clear of every skill node.
+       *  Each label is a "chip" card filled with the sector's accent tint, framed by
+       *  the saturated sector colour, lifted with a soft drop shadow. Icon and text
+       *  use the dark sector variant so they stay legible against the pale accent. */}
       {anchors.map((a) => {
-        const r = 405;
+        const r = 425;
         const rad = (a.angle * Math.PI) / 180;
         const lx = Math.cos(rad) * r;
         const ly = Math.sin(rad) * r;
@@ -175,26 +180,27 @@ export default function SkillTree({
           >
             <rect
               x={-60}
-              y={-45}
+              y={-38}
               width={120}
               height={76}
-              rx={16}
-              ry={16}
-              fill="var(--bg-elev)"
+              rx={18}
+              ry={18}
+              fill={a.accent}
               stroke={a.color}
               strokeWidth={2.75}
               filter="url(#label-shadow)"
             />
-            <g transform="translate(-17 -34)" style={{ color: a.color }}>
+            <g transform="translate(-17 -28)" style={{ color: a.darkColor }}>
               <Icon size={34} strokeWidth={2.4} />
             </g>
             <text
               textAnchor="middle"
-              dy="22"
+              dy="28"
               fontSize="17"
               fontWeight={800}
-              fill={a.color}
+              fill={a.darkColor}
               letterSpacing={0.4}
+              fontFamily="var(--font-display), var(--font-sans), system-ui, sans-serif"
             >
               {a.name}
             </text>
@@ -380,7 +386,7 @@ function Tooltip({ node }: TooltipProps) {
   const cy = node.y + dy;
 
   const PAD = 4;
-  cx = Math.max(-455 + halfW + PAD, Math.min(455 - halfW - PAD, cx));
+  cx = Math.max(-470 + halfW + PAD, Math.min(470 - halfW - PAD, cx));
 
   return (
     <g

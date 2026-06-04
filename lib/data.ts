@@ -55,6 +55,7 @@ export const categories: Category[] = [
     short: "HR",
     color: "#8d6a9f", // Vintage Lavender
     accent: "#e0d3e9",
+    darkColor: "#5f4569", // contrast ratio ~7:1 on accent
     icon: Users,
   },
   {
@@ -63,6 +64,7 @@ export const categories: Category[] = [
     short: "Finance",
     color: "#8cbcb9", // Muted Teal
     accent: "#d3e6e4",
+    darkColor: "#3a5e5c", // contrast ratio ~5.8:1 on accent
     icon: DollarSign,
   },
   {
@@ -71,6 +73,7 @@ export const categories: Category[] = [
     short: "Admin",
     color: "#dda448", // Honey Bronze
     accent: "#f4e2bf",
+    darkColor: "#8a5e1e", // contrast ratio ~5:1 on accent
     icon: Briefcase,
   },
 ];

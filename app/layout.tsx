@@ -1,14 +1,28 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, Sofia_Sans } from "next/font/google";
 import "./globals.css";
 
-// Inter is the guaranteed fallback in the Graphik / Sofia Pro stack — both of
-// those are commercial fonts the host site is expected to load via Adobe
-// Fonts (or @font-face) at the document level. Inter ships with the build so
-// the type design never collapses to system sans.
-const inter = Inter({
+// Graphik and Sofia Pro are commercial fonts that aren't available on Google
+// Fonts. We use two open-source siblings that match the brief ("professional
+// with a bit of playfulness"):
+//
+//   • Plus Jakarta Sans — geometric sans with humanist warmth. Serves as
+//     the body / UI font. Closest free analogue to Graphik.
+//   • Sofia Sans — the free open-source sibling of Sofia Pro by the same
+//     designer (Mostardesign). Used as the display font for headings.
+//
+// Both are loaded via next/font/google so they're inlined at build time —
+// no runtime network call, no FOUT.
+
+const sans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const display = Sofia_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -27,7 +41,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${sans.variable} ${display.variable}`}
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{

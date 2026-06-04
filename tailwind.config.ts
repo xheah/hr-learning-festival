@@ -49,14 +49,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        // Prefer Graphik (host via Adobe Fonts / Commercial Type), then Sofia Pro
-        // (Mostardesign / Adobe Fonts). Inter is loaded via next/font/google as a
-        // guaranteed offline-able fallback so the stack always resolves cleanly,
-        // and the OS sans fallbacks finish things off.
+        // Plus Jakarta Sans (--font-sans) and Sofia Sans (--font-display) are
+        // both inlined at build time via next/font/google in app/layout.tsx.
+        // Order falls through to system sans for absolute safety.
         sans: [
-          '"Graphik"',
-          '"Sofia Pro"',
-          "var(--font-inter)",
+          "var(--font-sans)",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
@@ -65,9 +62,8 @@ const config: Config = {
           "sans-serif",
         ],
         display: [
-          '"Sofia Pro"',
-          '"Graphik"',
-          "var(--font-inter)",
+          "var(--font-display)",
+          "var(--font-sans)",
           "ui-sans-serif",
           "system-ui",
           "sans-serif",
