@@ -32,6 +32,21 @@ const config: Config = {
           honey: "#dda448",
           tomato: "#bb342f",
         },
+        // Lavender tonal scale, used for "selection" emphasis throughout the UI
+        // (career goal pill, role picker, team builder roles + people).
+        lavender: {
+          50: "#f7f4f9",
+          100: "#efe7f3",
+          200: "#ddcde4",
+          300: "#c5acd0",
+          400: "#a684b6",
+          500: "#8d6a9f",
+          600: "#745482",
+          700: "#5f4569",
+          800: "#4f3957",
+          900: "#44324a",
+          950: "#281b2d",
+        },
       },
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],

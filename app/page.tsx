@@ -1,6 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  Compass,
+  PartyPopper,
+  Sparkles,
+  Target,
+  X,
+} from "lucide-react";
 import { people, roles, getSkillGap } from "@/lib/data";
 import { Person, Role, Skill } from "@/lib/types";
 import SkillTree from "@/components/SkillTree";
@@ -34,8 +44,8 @@ export default function Page() {
       <header className="sticky top-0 z-30 bg-[var(--bg)]/85 backdrop-blur border-b border-[var(--line)]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 grid place-items-center text-white text-sm font-bold shadow">
-              ✦
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 grid place-items-center text-white shadow">
+              <Sparkles size={16} strokeWidth={2.5} />
             </div>
             <div className="min-w-0">
               <div className="text-sm font-bold leading-tight truncate">
@@ -184,6 +194,7 @@ function ExplorerView({
   onSeeRoadmap,
 }: ExplorerProps) {
   const pct = gap ? Math.round(gap.readiness * 100) : null;
+  const PersonIcon = person.icon;
 
   return (
     <div className="animate-fade-in">
@@ -192,8 +203,8 @@ function ExplorerView({
         onClick={onPickPerson}
         className="w-full flex items-center gap-3 p-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] mb-3 active:scale-[0.99] transition"
       >
-        <div className="h-12 w-12 rounded-2xl bg-brand-500 text-white grid place-items-center text-2xl">
-          {person.avatar}
+        <div className="h-12 w-12 rounded-2xl bg-brand-500 text-white grid place-items-center">
+          <PersonIcon size={24} strokeWidth={2.25} />
         </div>
         <div className="min-w-0 flex-1 text-left">
           <div className="text-sm font-bold truncate">{person.name}</div>
@@ -206,21 +217,23 @@ function ExplorerView({
         </div>
       </button>
 
-      {/* Goal pill */}
+      {/* Goal pill — lavender accent when set */}
       <button
         onClick={onPickGoal}
         className={`w-full flex items-center gap-3 p-3 rounded-2xl border mb-3 active:scale-[0.99] transition ${
           role
-            ? "border-brand-500 bg-brand-50 dark:bg-brand-950"
+            ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950"
             : "border-dashed border-[var(--line)] bg-[var(--bg-elev)]"
         }`}
       >
         <div
-          className={`h-10 w-10 rounded-xl grid place-items-center text-lg ${
-            role ? "bg-brand-500/20 text-brand-600 dark:text-brand-200" : "bg-[var(--bg)] opacity-70"
+          className={`h-10 w-10 rounded-xl grid place-items-center ${
+            role
+              ? "bg-lavender-500/20 text-lavender-700 dark:text-lavender-200"
+              : "bg-[var(--bg)] opacity-70"
           }`}
         >
-          🎯
+          <Target size={20} strokeWidth={2.25} />
         </div>
         <div className="min-w-0 flex-1 text-left">
           <div className="text-[10px] uppercase tracking-wide opacity-65">
@@ -232,7 +245,7 @@ function ExplorerView({
         </div>
         {pct !== null && (
           <div className="flex-shrink-0 text-right">
-            <div className="text-base font-bold text-brand-600 dark:text-brand-300">
+            <div className="text-base font-bold text-lavender-700 dark:text-lavender-200">
               {pct}%
             </div>
             <div className="text-[10px] opacity-65">ready</div>
@@ -274,25 +287,48 @@ function ExplorerView({
       {/* Gap summary + CTA */}
       {gap && role && (
         <div className="mt-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-3 flex items-center gap-3 animate-fade-in">
-          <div className="text-2xl">{gap.missing.length === 0 ? "🎉" : "🧭"}</div>
+          <div
+            className={`h-10 w-10 rounded-xl grid place-items-center flex-shrink-0 ${
+              gap.missing.length === 0
+                ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                : "bg-lavender-500/15 text-lavender-700 dark:text-lavender-200"
+            }`}
+          >
+            {gap.missing.length === 0 ? (
+              <PartyPopper size={20} strokeWidth={2.25} />
+            ) : (
+              <Compass size={20} strokeWidth={2.25} />
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold">
               {gap.missing.length === 0
                 ? `Ready for ${role.title}!`
                 : `${gap.missing.length} skill${gap.missing.length === 1 ? "" : "s"} to go`}
             </div>
-            <div className="text-[11px] opacity-70 truncate">
-              {gap.missing
-                .slice(0, 3)
-                .map((s) => `${s.icon} ${s.name}`)
-                .join(" · ") || "Next stop: that promotion."}
+            <div className="text-[11px] opacity-70 truncate flex items-center gap-1 flex-wrap">
+              {gap.missing.length > 0 ? (
+                gap.missing.slice(0, 3).map((s, i) => {
+                  const Icon = s.icon;
+                  return (
+                    <span key={s.id} className="inline-flex items-center gap-1">
+                      {i > 0 && <span className="opacity-40">·</span>}
+                      <Icon size={11} strokeWidth={2.25} />
+                      <span>{s.name}</span>
+                    </span>
+                  );
+                })
+              ) : (
+                <span>Next stop: that promotion.</span>
+              )}
             </div>
           </div>
           <button
             onClick={onSeeRoadmap}
-            className="flex-shrink-0 rounded-full bg-brand-500 text-white text-xs font-semibold px-3 py-2 active:scale-95 transition shadow"
+            className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-brand-500 text-white text-xs font-semibold px-3 py-2 active:scale-95 transition shadow"
           >
-            Roadmap →
+            Roadmap
+            <ArrowRight size={13} strokeWidth={2.5} />
           </button>
         </div>
       )}
@@ -320,13 +356,17 @@ function RoadmapView({
     <div className="animate-fade-in space-y-4">
       <button
         onClick={onBack}
-        className="text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
+        className="text-xs opacity-70 hover:opacity-100 inline-flex items-center gap-1"
       >
-        ← Back to tree
+        <ArrowLeft size={14} strokeWidth={2.25} />
+        <span>Back to tree</span>
       </button>
       <RoadmapCard person={person} role={role} />
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-4 text-sm">
-        <div className="font-semibold mb-1">📸 Take a screenshot</div>
+        <div className="font-semibold mb-1 flex items-center gap-1.5">
+          <Camera size={16} strokeWidth={2.25} />
+          <span>Take a screenshot</span>
+        </div>
         <p className="text-xs opacity-75 leading-relaxed">
           This card is your takeaway from the booth. Screenshot it now — it
           shows your starting point, your target role across HR, Finance, or
@@ -364,10 +404,10 @@ function Sheet({
           <div className="text-sm font-bold">{title}</div>
           <button
             onClick={onClose}
-            className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center text-base opacity-70 hover:opacity-100"
+            className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center opacity-70 hover:opacity-100"
             aria-label="Close"
           >
-            ✕
+            <X size={16} strokeWidth={2.25} />
           </button>
         </div>
         {children}

@@ -103,10 +103,11 @@ export default function SkillTree({
   }, [nodes]);
 
   const hovered = hoveredId ? nodeMap.get(hoveredId) ?? null : null;
+  const PersonIcon = person.icon;
 
   return (
     <svg
-      viewBox="-395 -395 790 790"
+      viewBox="-445 -445 890 890"
       className="w-full h-full select-none"
       preserveAspectRatio="xMidYMid meet"
       onClick={() => onSelectSkill?.(null)}
@@ -146,9 +147,9 @@ export default function SkillTree({
         />
       ))}
 
-      {/* Category labels around the outer edge */}
+      {/* Category labels around the outer edge — pushed well clear of the tier 3 ring */}
       {anchors.map((a) => {
-        const r = 365;
+        const r = 405;
         const rad = (a.angle * Math.PI) / 180;
         const lx = Math.cos(rad) * r;
         const ly = Math.sin(rad) * r;
@@ -158,19 +159,25 @@ export default function SkillTree({
             key={a.id + "-label"}
             transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}
           >
-            <g
-              transform="translate(-14 -28)"
-              style={{ color: a.color }}
-            >
-              <Icon size={28} strokeWidth={2.25} />
+            {/* Soft tinted backdrop so the label "pops" against the skill ring */}
+            <ellipse
+              cx={0}
+              cy={-5}
+              rx={58}
+              ry={34}
+              fill={a.color}
+              opacity={0.15}
+            />
+            <g transform="translate(-18 -36)" style={{ color: a.color }}>
+              <Icon size={36} strokeWidth={2.4} />
             </g>
             <text
               textAnchor="middle"
-              dy="20"
-              fontSize="14"
-              fontWeight={700}
+              dy="25"
+              fontSize="18"
+              fontWeight={800}
               fill={a.color}
-              opacity={0.9}
+              letterSpacing={0.4}
             >
               {a.name}
             </text>
@@ -208,9 +215,13 @@ export default function SkillTree({
       <g>
         <circle r={52} fill="var(--brand)" opacity={0.18} />
         <circle r={44} fill="var(--brand)" />
-        <text textAnchor="middle" dy="10" fontSize="36" pointerEvents="none">
-          {person.avatar}
-        </text>
+        <g
+          transform="translate(-22 -22)"
+          pointerEvents="none"
+          style={{ color: "#ffffff" }}
+        >
+          <PersonIcon size={44} strokeWidth={2} />
+        </g>
         <text
           textAnchor="middle"
           dy="76"
@@ -352,7 +363,7 @@ function Tooltip({ node }: TooltipProps) {
   const cy = node.y + dy;
 
   const PAD = 4;
-  cx = Math.max(-395 + halfW + PAD, Math.min(395 - halfW - PAD, cx));
+  cx = Math.max(-445 + halfW + PAD, Math.min(445 - halfW - PAD, cx));
 
   return (
     <g

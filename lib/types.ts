@@ -28,8 +28,8 @@ export interface Person {
   name: string;
   currentRole: string;
   yearsExperience: number;
-  /** Emoji avatar — kept as an emoji because it's a human identifier, not an iconographic concept. */
-  avatar: string;
+  /** Lucide identity icon — distinct per person so each card / centre node is recognisable. */
+  icon: LucideIcon;
   bio: string;
   skillIds: string[];
 }

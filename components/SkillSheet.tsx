@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { categoryById } from "@/lib/data";
 import { Person, Role, Skill } from "@/lib/types";
 
@@ -60,9 +61,9 @@ export default function SkillSheet({ skill, person, role, onClose }: Props) {
           <button
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center text-base opacity-70 hover:opacity-100"
+            className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center opacity-70 hover:opacity-100"
           >
-            ✕
+            <X size={16} strokeWidth={2.25} />
           </button>
         </div>
         <p className="text-sm opacity-80 mt-4 leading-relaxed">

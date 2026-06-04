@@ -15,6 +15,7 @@ export default function PersonPicker({ people, selectedId, onSelect, compact }: 
       <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
         {people.map((p) => {
           const isSelected = p.id === selectedId;
+          const Icon = p.icon;
           return (
             <button
               key={p.id}
@@ -23,16 +24,16 @@ export default function PersonPicker({ people, selectedId, onSelect, compact }: 
               aria-label={p.name}
               className={`group rounded-2xl border p-2 text-left transition-all active:scale-[0.98] ${
                 isSelected
-                  ? "border-brand-500 bg-brand-50 dark:bg-brand-950 shadow-lg shadow-brand-500/10"
-                  : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-brand-400"
+                  ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950 shadow-lg shadow-lavender-500/10"
+                  : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
               }`}
             >
               <div
-                className={`grid place-items-center rounded-full h-9 w-9 text-2xl mx-auto ${
-                  isSelected ? "bg-brand-500/20" : "bg-[var(--bg)]"
+                className={`grid place-items-center rounded-full h-9 w-9 mx-auto ${
+                  isSelected ? "bg-lavender-500/20 text-lavender-700 dark:text-lavender-200" : "bg-[var(--bg)]"
                 }`}
               >
-                {p.avatar}
+                <Icon size={18} strokeWidth={2.25} />
               </div>
             </button>
           );
@@ -45,6 +46,7 @@ export default function PersonPicker({ people, selectedId, onSelect, compact }: 
     <div className="grid grid-cols-2 gap-3">
       {people.map((p) => {
         const isSelected = p.id === selectedId;
+        const Icon = p.icon;
         return (
           <button
             key={p.id}
@@ -53,17 +55,19 @@ export default function PersonPicker({ people, selectedId, onSelect, compact }: 
             aria-label={`${p.name}, ${p.currentRole}`}
             className={`group rounded-2xl border p-3 text-left transition-all active:scale-[0.98] ${
               isSelected
-                ? "border-brand-500 bg-brand-50 dark:bg-brand-950 shadow-lg shadow-brand-500/10"
-                : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-brand-400"
+                ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950 shadow-lg shadow-lavender-500/10"
+                : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
             }`}
           >
             <div className="flex items-center gap-3">
               <div
-                className={`grid place-items-center rounded-full h-12 w-12 text-3xl flex-shrink-0 ${
-                  isSelected ? "bg-brand-500/20" : "bg-[var(--bg)]"
+                className={`grid place-items-center rounded-full h-12 w-12 flex-shrink-0 ${
+                  isSelected
+                    ? "bg-lavender-500/20 text-lavender-700 dark:text-lavender-200"
+                    : "bg-[var(--bg)]"
                 }`}
               >
-                {p.avatar}
+                <Icon size={22} strokeWidth={2.25} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold leading-tight break-words">

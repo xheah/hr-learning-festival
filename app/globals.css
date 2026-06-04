@@ -73,6 +73,15 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(116, 73, 255, 0.35);
+  background: rgba(141, 106, 159, 0.35); /* lavender */
   border-radius: 3px;
+}
+
+/* Hide scrollbars on opted-in containers (e.g. arrow-driven horizontal scrollers) */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
