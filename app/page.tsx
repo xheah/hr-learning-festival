@@ -121,7 +121,11 @@ export default function Page() {
 
       {/* Modal: Person picker */}
       {pickingPerson && (
-        <Sheet onClose={() => setPickingPerson(false)} title="Whose tree do you want to see?">
+        <Sheet
+          onClose={() => setPickingPerson(false)}
+          title="Whose tree do you want to see?"
+          size="lg"
+        >
           <PersonPicker
             people={people}
             selectedId={person.id}
@@ -338,18 +342,21 @@ function Sheet({
   children,
   onClose,
   title,
+  size = "md",
 }: {
   children: React.ReactNode;
   onClose: () => void;
   title: string;
+  size?: "md" | "lg";
 }) {
+  const maxWidth = size === "lg" ? "sm:max-w-lg" : "sm:max-w-md";
   return (
     <div
       className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-md bg-[var(--bg-elev)] rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-[var(--line)] shadow-2xl animate-pop-in max-h-[80vh] overflow-y-auto"
+        className={`w-full ${maxWidth} bg-[var(--bg-elev)] rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-[var(--line)] shadow-2xl animate-pop-in max-h-[80vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--line)] sm:hidden" />

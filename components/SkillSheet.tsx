@@ -16,6 +16,8 @@ export default function SkillSheet({ skill, person, role, onClose }: Props) {
   const required = role?.requiredSkillIds.includes(skill.id);
   const nice = role?.niceToHaveSkillIds.includes(skill.id);
   const cat = categoryById[skill.category];
+  const SkillIcon = skill.icon;
+  const CatIcon = cat.icon;
 
   let status = "Not yet acquired";
   let tone = "opacity-70";
@@ -42,14 +44,15 @@ export default function SkillSheet({ skill, person, role, onClose }: Props) {
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--line)] sm:hidden" />
         <div className="flex items-start gap-3">
           <div
-            className="h-14 w-14 rounded-2xl grid place-items-center text-3xl flex-shrink-0"
+            className="h-14 w-14 rounded-2xl grid place-items-center flex-shrink-0"
             style={{ background: cat.color + "22", color: cat.color }}
           >
-            {skill.icon}
+            <SkillIcon size={28} strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs uppercase tracking-wide opacity-65">
-              {cat.icon} {cat.name}
+            <div className="text-xs uppercase tracking-wide opacity-65 flex items-center gap-1">
+              <CatIcon size={12} strokeWidth={2.25} />
+              <span>{cat.name}</span>
             </div>
             <div className="text-xl font-bold leading-tight">{skill.name}</div>
             <div className={`text-xs font-medium mt-1 ${tone}`}>{status}</div>

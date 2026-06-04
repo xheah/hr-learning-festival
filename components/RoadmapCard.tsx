@@ -62,12 +62,15 @@ export default function RoadmapCard({ person, role }: Props) {
               {acquired.length === 0 && (
                 <div className="text-xs opacity-60">Starting fresh!</div>
               )}
-              {acquired.slice(0, 5).map((s) => (
-                <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-sm">{s.icon}</span>
-                  <span className="truncate">{s.name}</span>
-                </div>
-              ))}
+              {acquired.slice(0, 5).map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                    <Icon size={14} strokeWidth={2.25} />
+                    <span className="truncate">{s.name}</span>
+                  </div>
+                );
+              })}
               {acquired.length > 5 && (
                 <div className="text-[10px] opacity-60">
                   + {acquired.length - 5} more
@@ -85,12 +88,15 @@ export default function RoadmapCard({ person, role }: Props) {
                   You're ready! 🎉
                 </div>
               )}
-              {missing.slice(0, 5).map((s) => (
-                <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-sm">{s.icon}</span>
-                  <span className="truncate">{s.name}</span>
-                </div>
-              ))}
+              {missing.slice(0, 5).map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                    <Icon size={14} strokeWidth={2.25} />
+                    <span className="truncate">{s.name}</span>
+                  </div>
+                );
+              })}
               {missing.length > 5 && (
                 <div className="text-[10px] opacity-60">
                   + {missing.length - 5} more
@@ -101,12 +107,18 @@ export default function RoadmapCard({ person, role }: Props) {
         </div>
 
         {niceMissing.length > 0 && (
-          <div className="mt-3 text-[11px] opacity-70">
-            <span className="font-semibold">Bonus picks: </span>
-            {niceMissing
-              .slice(0, 3)
-              .map((s) => `${s.icon} ${s.name}`)
-              .join(" · ")}
+          <div className="mt-3 text-[11px] opacity-70 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-semibold">Bonus picks:</span>
+            {niceMissing.slice(0, 3).map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <span key={s.id} className="inline-flex items-center gap-1">
+                  {i > 0 && <span className="opacity-40">·</span>}
+                  <Icon size={12} strokeWidth={2.25} />
+                  <span>{s.name}</span>
+                </span>
+              );
+            })}
           </div>
         )}
 

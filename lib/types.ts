@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+
 export type CategoryId = "hr" | "finance" | "admin";
 
 export interface Category {
@@ -6,7 +8,7 @@ export interface Category {
   short: string;
   color: string; // tailwind-ish hex
   accent: string;
-  icon: string; // emoji
+  icon: LucideIcon;
 }
 
 export interface Skill {
@@ -14,7 +16,7 @@ export interface Skill {
   name: string;
   category: CategoryId;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   /** Skills that should usually be acquired before this one. Visual + ordering hint. */
   prerequisites?: string[];
   /** 1 = foundational, 2 = intermediate, 3 = advanced */
@@ -26,7 +28,8 @@ export interface Person {
   name: string;
   currentRole: string;
   yearsExperience: number;
-  avatar: string; // emoji
+  /** Emoji avatar — kept as an emoji because it's a human identifier, not an iconographic concept. */
+  avatar: string;
   bio: string;
   skillIds: string[];
 }

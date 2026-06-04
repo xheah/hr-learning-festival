@@ -91,18 +91,20 @@ export default function TeamBuilder() {
             if (!s) return null;
             const cov = coveredIds.has(id);
             const cat = categoryById[s.category];
+            const Icon = s.icon;
             return (
               <div
                 key={id}
-                className={`text-[11px] px-2 py-1 rounded-full flex items-center gap-1 border ${
+                title={s.name}
+                className={`text-[11px] px-2 py-1 rounded-full flex items-center gap-1.5 border ${
                   cov
                     ? "border-transparent"
                     : "border-dashed border-[var(--line)] opacity-65"
                 }`}
                 style={cov ? { background: cat.color + "22", color: cat.color } : {}}
               >
-                <span>{cov ? "✓" : "○"}</span>
-                <span>{s.icon}</span>
+                <span className="font-bold text-[10px]">{cov ? "✓" : "○"}</span>
+                <Icon size={12} strokeWidth={2.25} />
                 <span>{s.name}</span>
               </div>
             );

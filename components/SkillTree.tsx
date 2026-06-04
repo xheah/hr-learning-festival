@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { categories, skills } from "@/lib/data";
 import { Person, Role, Skill } from "@/lib/types";
 
@@ -17,7 +18,7 @@ interface AnchorInfo {
   angle: number;
   color: string;
   name: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const WEDGE_ARC = 360 / categories.length;
@@ -70,12 +71,17 @@ interface Props {
   onSelectSkill?: (s: Skill | null) => void;
 }
 
+const NODE_R = 28;
+const NODE_R_SELECTED = 32;
+const ICON_SIZE = 26;
+
 export default function SkillTree({
   person,
   role,
   selectedSkillId,
   onSelectSkill,
 }: Props) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { nodes, anchors } = useMemo(() => buildLayout(), []);
   const haveSet = useMemo(() => new Set(person.skillIds), [person]);
   const requiredSet = useMemo(
@@ -92,6 +98,8 @@ export default function SkillTree({
     nodes.forEach((n) => m.set(n.skill.id, n));
     return m;
   }, [nodes]);
+
+  const hovered = hoveredId ? nodeMap.get(hoveredId) ?? null : null;
 
   return (
     <svg
@@ -141,23 +149,25 @@ export default function SkillTree({
         const rad = (a.angle * Math.PI) / 180;
         const lx = Math.cos(rad) * r;
         const ly = Math.sin(rad) * r;
+        const Icon = a.icon;
         return (
-          <g key={a.id + "-label"} transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}>
-            <text
-              textAnchor="middle"
-              dy="-6"
-              fontSize="22"
-              opacity={0.95}
+          <g
+            key={a.id + "-label"}
+            transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}
+          >
+            <g
+              transform="translate(-14 -28)"
+              style={{ color: a.color }}
             >
-              {a.icon}
-            </text>
+              <Icon size={28} strokeWidth={2.25} />
+            </g>
             <text
               textAnchor="middle"
-              dy="18"
-              fontSize="13"
-              fontWeight={600}
+              dy="20"
+              fontSize="14"
+              fontWeight={700}
               fill={a.color}
-              opacity={0.85}
+              opacity={0.9}
             >
               {a.name}
             </text>
@@ -226,18 +236,21 @@ export default function SkillTree({
         const required = requiredSet.has(n.skill.id);
         const nice = niceSet.has(n.skill.id);
         const isSelected = selectedSkillId === n.skill.id;
-        const r = isSelected ? 28 : 24;
-        const opacity = have ? 1 : required ? 0.92 : nice ? 0.7 : 0.42;
+        const isHovered = hoveredId === n.skill.id;
+        const r = isSelected || isHovered ? NODE_R_SELECTED : NODE_R;
+        const opacity = have ? 1 : required ? 0.95 : nice ? 0.75 : 0.5;
         const fill = have ? n.categoryColor : "var(--bg-elev)";
         const strokeColor =
           have || required || nice ? n.categoryColor : "currentColor";
-        const strokeWidth = required && !have ? 2.5 : have ? 2 : 1.5;
-
-        // Label position — push away from centre
-        const labelDist = r + 14;
-        const rad = (n.angle * Math.PI) / 180;
-        const labelOffsetX = Math.cos(rad) * labelDist;
-        const labelOffsetY = Math.sin(rad) * labelDist;
+        const strokeWidth = required && !have ? 2.75 : have ? 2.25 : 1.5;
+        const iconColor = have
+          ? "#ffffff"
+          : required
+            ? n.categoryColor
+            : nice
+              ? n.categoryColor
+              : "currentColor";
+        const Icon = n.skill.icon;
 
         return (
           <g
@@ -248,11 +261,15 @@ export default function SkillTree({
               e.stopPropagation();
               onSelectSkill?.(n.skill);
             }}
+            onMouseEnter={() => setHoveredId(n.skill.id)}
+            onMouseLeave={() =>
+              setHoveredId((curr) => (curr === n.skill.id ? null : curr))
+            }
             style={{ cursor: "pointer" }}
-            className="transition-all duration-200"
+            className="transition-all duration-150"
           >
             {/* Bigger invisible touch target */}
-            <circle r={34} fill="transparent" />
+            <circle r={36} fill="transparent" />
             {/* Target ring animation for required-but-missing */}
             {required && !have && (
               <circle
@@ -264,7 +281,7 @@ export default function SkillTree({
               >
                 <animate
                   attributeName="r"
-                  values={`${r + 4};${r + 9};${r + 4}`}
+                  values={`${r + 4};${r + 10};${r + 4}`}
                   dur="2.2s"
                   repeatCount="indefinite"
                 />
@@ -282,42 +299,75 @@ export default function SkillTree({
               stroke={strokeColor}
               strokeWidth={strokeWidth}
               strokeDasharray={required && !have ? "4 3" : nice && !have ? "2 3" : ""}
-              className={isSelected ? "skill-glow" : ""}
+              className={isSelected || isHovered ? "skill-glow" : ""}
             />
-            <text
-              textAnchor="middle"
-              dy="7"
-              fontSize="20"
-              pointerEvents="none"
-              opacity={have ? 1 : 0.65}
-            >
-              {n.skill.icon}
-            </text>
-            {/* Label sitting outside the node, pointing away from the centre */}
-            <text
-              x={labelOffsetX.toFixed(1)}
-              y={labelOffsetY.toFixed(1)}
-              textAnchor="middle"
-              fontSize="9"
-              fill="currentColor"
-              opacity={have ? 0.85 : 0.55}
+            <g
+              transform={`translate(${-ICON_SIZE / 2} ${-ICON_SIZE / 2})`}
               pointerEvents="none"
             >
-              {n.skill.name}
-            </text>
-            {have && (
-              <text
-                textAnchor="middle"
-                dy={-r - 4}
-                fontSize="11"
-                pointerEvents="none"
-              >
-                ✓
-              </text>
-            )}
+              <Icon
+                size={ICON_SIZE}
+                color={iconColor}
+                strokeWidth={have ? 2.25 : 2}
+              />
+            </g>
           </g>
         );
       })}
+
+      {/* Hover tooltip */}
+      {hovered && <Tooltip node={hovered} />}
     </svg>
+  );
+}
+
+interface TooltipProps {
+  node: SkillNode;
+}
+
+function Tooltip({ node }: TooltipProps) {
+  const name = node.skill.name;
+  const charW = 7.4;
+  const padX = 14;
+  const width = Math.max(70, name.length * charW + padX * 2);
+  const height = 30;
+
+  // Push tooltip outward along the node's radial direction
+  const rad = (node.angle * Math.PI) / 180;
+  const offset = NODE_R_SELECTED + 16;
+  let cx = node.x + Math.cos(rad) * offset;
+  let cy = node.y + Math.sin(rad) * offset;
+
+  // Keep tooltip inside the viewBox
+  const half = width / 2;
+  cx = Math.max(-395 + half + 4, Math.min(395 - half - 4, cx));
+  cy = Math.max(-395 + height / 2 + 4, Math.min(395 - height / 2 - 4, cy));
+
+  return (
+    <g
+      transform={`translate(${cx.toFixed(1)} ${cy.toFixed(1)})`}
+      pointerEvents="none"
+    >
+      <rect
+        x={-width / 2}
+        y={-height / 2}
+        width={width}
+        height={height}
+        rx={8}
+        ry={8}
+        fill={node.categoryColor}
+        opacity={0.96}
+      />
+      <text
+        x={0}
+        y={5}
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight={600}
+        fill="#ffffff"
+      >
+        {name}
+      </text>
+    </g>
   );
 }
