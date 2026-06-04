@@ -3,21 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8f7ff;
+  --bg: #faf8f6;
   --bg-elev: #ffffff;
-  --text: #1a1730;
-  --text-soft: #5a5478;
-  --line: #e5e0f5;
-  --brand: #6429f5;
+  --text: #1f1a1a;
+  --text-soft: #5a5454;
+  --line: #c5cbd3; /* Pale Slate */
+  --brand: #bb342f; /* Tomato Jam */
 }
 
 .dark {
-  --bg: #0c0a1a;
-  --bg-elev: #161333;
-  --text: #f3f1ff;
-  --text-soft: #b3acd9;
-  --line: #2a224a;
-  --brand: #9276ff;
+  --bg: #181314;
+  --bg-elev: #221b1d;
+  --text: #f4ecec;
+  --text-soft: #b8a7a7;
+  --line: #3a2f30;
+  --brand: #e8736c;
 }
 
 html,
@@ -32,9 +32,39 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Skill node hover ring */
-.skill-glow {
-  filter: drop-shadow(0 0 8px rgba(146, 118, 255, 0.55));
+/* Skill circles smoothly transition size + style on hover.
+ * Default filter is a transparent drop-shadow so the transition to the
+ * hovered .skill-glow state interpolates rather than snapping. */
+.skill-circle {
+  filter: drop-shadow(0 0 0 rgba(187, 52, 47, 0));
+  transition:
+    r 220ms ease-in-out,
+    stroke-width 220ms ease-in-out,
+    fill 220ms ease-in-out,
+    stroke 220ms ease-in-out,
+    filter 220ms ease-in-out;
+}
+
+.skill-circle.skill-glow {
+  filter: drop-shadow(0 0 10px rgba(187, 52, 47, 0.55));
+}
+
+/* Tooltip pop-in: smooth ease-in-out for both opacity and a subtle scale */
+@keyframes tooltipPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tooltip-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tooltipPop 180ms ease-in-out both;
 }
 
 /* Compact scrollbar on mobile */

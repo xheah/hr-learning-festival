@@ -45,24 +45,24 @@ export const categories: Category[] = [
     id: "hr",
     name: "Human Resources",
     short: "HR",
-    color: "#8b5cf6",
-    accent: "#ddd6fe",
+    color: "#8d6a9f", // Vintage Lavender
+    accent: "#e0d3e9",
     icon: Users,
   },
   {
     id: "finance",
     name: "Finance",
     short: "Finance",
-    color: "#10b981",
-    accent: "#a7f3d0",
+    color: "#8cbcb9", // Muted Teal
+    accent: "#d3e6e4",
     icon: DollarSign,
   },
   {
     id: "admin",
     name: "Administration",
     short: "Admin",
-    color: "#f59e0b",
-    accent: "#fde68a",
+    color: "#dda448", // Honey Bronze
+    accent: "#f4e2bf",
     icon: Briefcase,
   },
 ];

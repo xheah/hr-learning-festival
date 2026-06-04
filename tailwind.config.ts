@@ -10,18 +10,27 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Brand: Tomato Jam (#BB342F) with a derived tonal scale
         brand: {
-          50: "#f3f1ff",
-          100: "#e9e5ff",
-          200: "#d5ceff",
-          300: "#b6a7ff",
-          400: "#9276ff",
-          500: "#7549ff",
-          600: "#6429f5",
-          700: "#561ce0",
-          800: "#481bb5",
-          900: "#3c1b91",
-          950: "#240e5e",
+          50: "#fdf4f3",
+          100: "#fce7e5",
+          200: "#f9c8c4",
+          300: "#f29f99",
+          400: "#e8736c",
+          500: "#d44b43",
+          600: "#bb342f",
+          700: "#9b2924",
+          800: "#7e2521",
+          900: "#67201d",
+          950: "#380c0a",
+        },
+        // Sector & neutral palette tokens (kept here so they're tree-shakeable for arbitrary classes)
+        palette: {
+          lavender: "#8d6a9f",
+          slate: "#c5cbd3",
+          teal: "#8cbcb9",
+          honey: "#dda448",
+          tomato: "#bb342f",
         },
       },
       fontFamily: {

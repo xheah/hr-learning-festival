@@ -74,6 +74,9 @@ interface Props {
 const NODE_R = 28;
 const NODE_R_SELECTED = 32;
 const ICON_SIZE = 26;
+/** Gap in viewBox units between the skill circle edge and the tooltip's nearest edge.
+ *  The viewBox spans 790 units (~440px screen), so 6 units ≈ 3.3px — comfortably ≥ 2px. */
+const TOOLTIP_MARGIN = 6;
 
 export default function SkillTree({
   person,
@@ -265,8 +268,10 @@ export default function SkillTree({
             onMouseLeave={() =>
               setHoveredId((curr) => (curr === n.skill.id ? null : curr))
             }
-            style={{ cursor: "pointer" }}
-            className="transition-all duration-150"
+            style={{
+              cursor: "pointer",
+              transition: "opacity 220ms ease-in-out",
+            }}
           >
             {/* Bigger invisible touch target */}
             <circle r={36} fill="transparent" />
@@ -299,7 +304,7 @@ export default function SkillTree({
               stroke={strokeColor}
               strokeWidth={strokeWidth}
               strokeDasharray={required && !have ? "4 3" : nice && !have ? "2 3" : ""}
-              className={isSelected || isHovered ? "skill-glow" : ""}
+              className={`skill-circle ${isSelected || isHovered ? "skill-glow" : ""}`}
             />
             <g
               transform={`translate(${-ICON_SIZE / 2} ${-ICON_SIZE / 2})`}
@@ -331,43 +336,51 @@ function Tooltip({ node }: TooltipProps) {
   const padX = 14;
   const width = Math.max(70, name.length * charW + padX * 2);
   const height = 30;
+  const halfW = width / 2;
+  const halfH = height / 2;
 
-  // Push tooltip outward along the node's radial direction
-  const rad = (node.angle * Math.PI) / 180;
-  const offset = NODE_R_SELECTED + 16;
-  let cx = node.x + Math.cos(rad) * offset;
-  let cy = node.y + Math.sin(rad) * offset;
+  // Place the tooltip directly above the node when the node sits in the top
+  // half of the tree, directly below when it sits in the bottom half. This
+  // keeps the vertical gap between the node circle and the tooltip's nearest
+  // edge equal to exactly TOOLTIP_MARGIN, and means we can freely clamp the
+  // horizontal position to stay inside the viewBox without ever
+  // re-introducing overlap with the node.
+  const placeAbove = node.y < 0;
+  const dy =
+    (NODE_R_SELECTED + TOOLTIP_MARGIN + halfH) * (placeAbove ? -1 : 1);
+  let cx = node.x;
+  const cy = node.y + dy;
 
-  // Keep tooltip inside the viewBox
-  const half = width / 2;
-  cx = Math.max(-395 + half + 4, Math.min(395 - half - 4, cx));
-  cy = Math.max(-395 + height / 2 + 4, Math.min(395 - height / 2 - 4, cy));
+  const PAD = 4;
+  cx = Math.max(-395 + halfW + PAD, Math.min(395 - halfW - PAD, cx));
 
   return (
     <g
       transform={`translate(${cx.toFixed(1)} ${cy.toFixed(1)})`}
       pointerEvents="none"
     >
-      <rect
-        x={-width / 2}
-        y={-height / 2}
-        width={width}
-        height={height}
-        rx={8}
-        ry={8}
-        fill={node.categoryColor}
-        opacity={0.96}
-      />
-      <text
-        x={0}
-        y={5}
-        textAnchor="middle"
-        fontSize="14"
-        fontWeight={600}
-        fill="#ffffff"
-      >
-        {name}
-      </text>
+      <g className="tooltip-pop">
+        <rect
+          x={-halfW}
+          y={-halfH}
+          width={width}
+          height={height}
+          rx={8}
+          ry={8}
+          fill={node.categoryColor}
+          opacity={0.97}
+        />
+        <text
+          x={0}
+          y={5}
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight={600}
+          fill="#ffffff"
+        >
+          {name}
+        </text>
+      </g>
     </g>
   );
 }
