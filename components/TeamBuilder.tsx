@@ -219,44 +219,45 @@ function RoleScroller({ roles, activeId, onSelect }: RoleScrollerProps) {
     trackRef.current?.scrollBy({ left: dx, behavior: "smooth" });
   };
 
+  // gap-2.5 = 10px between each arrow button and the role track.
   return (
-    <div className="relative">
+    <div className="flex items-center gap-2.5">
       <button
         onClick={() => scrollBy(-220)}
+        disabled={!canLeft}
         aria-label="Scroll roles left"
-        className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity ${
-          canLeft ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className="flex-shrink-0 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:border-lavender-400"
       >
         <ChevronLeft size={18} strokeWidth={2.25} />
       </button>
       <div
         ref={trackRef}
-        className="flex gap-2 overflow-x-auto hide-scrollbar px-10 py-1"
+        className="flex-1 min-w-0 overflow-x-auto hide-scrollbar"
       >
-        {roles.map((r) => {
-          const active = r.id === activeId;
-          return (
-            <button
-              key={r.id}
-              onClick={() => onSelect(r)}
-              className={`flex-shrink-0 rounded-full px-4 py-2 text-sm border transition ${
-                active
-                  ? "border-lavender-500 bg-lavender-500 text-white shadow"
-                  : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
-              }`}
-            >
-              {r.title}
-            </button>
-          );
-        })}
+        <div className="flex gap-2 py-1">
+          {roles.map((r) => {
+            const active = r.id === activeId;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelect(r)}
+                className={`flex-shrink-0 rounded-full px-4 py-2 text-sm border transition ${
+                  active
+                    ? "border-lavender-500 bg-lavender-500 text-white shadow"
+                    : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
+                }`}
+              >
+                {r.title}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <button
         onClick={() => scrollBy(220)}
+        disabled={!canRight}
         aria-label="Scroll roles right"
-        className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity ${
-          canRight ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className="flex-shrink-0 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:border-lavender-400"
       >
         <ChevronRight size={18} strokeWidth={2.25} />
       </button>

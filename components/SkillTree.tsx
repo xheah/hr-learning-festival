@@ -107,11 +107,23 @@ export default function SkillTree({
 
   return (
     <svg
-      viewBox="-445 -445 890 890"
+      viewBox="-455 -455 910 910"
       className="w-full h-full select-none"
       preserveAspectRatio="xMidYMid meet"
       onClick={() => onSelectSkill?.(null)}
     >
+      <defs>
+        {/* Soft drop shadow used by the sector label cards */}
+        <filter id="label-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow
+            dx="0"
+            dy="4"
+            stdDeviation="6"
+            floodColor="#000000"
+            floodOpacity="0.22"
+          />
+        </filter>
+      </defs>
       {/* Faint category wedges */}
       {anchors.map((a) => {
         const startAngle = a.angle - WEDGE_ARC / 2;
@@ -147,7 +159,9 @@ export default function SkillTree({
         />
       ))}
 
-      {/* Category labels around the outer edge — pushed well clear of the tier 3 ring */}
+      {/* Category labels around the outer edge — pushed well clear of the tier 3 ring.
+       *  Each label is a card: rounded rect with the sector colour as a heavy stroke
+       *  plus a soft drop shadow for depth. */}
       {anchors.map((a) => {
         const r = 405;
         const rad = (a.angle * Math.PI) / 180;
@@ -159,22 +173,25 @@ export default function SkillTree({
             key={a.id + "-label"}
             transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}
           >
-            {/* Soft tinted backdrop so the label "pops" against the skill ring */}
-            <ellipse
-              cx={0}
-              cy={-5}
-              rx={58}
-              ry={34}
-              fill={a.color}
-              opacity={0.15}
+            <rect
+              x={-60}
+              y={-45}
+              width={120}
+              height={76}
+              rx={16}
+              ry={16}
+              fill="var(--bg-elev)"
+              stroke={a.color}
+              strokeWidth={2.75}
+              filter="url(#label-shadow)"
             />
-            <g transform="translate(-18 -36)" style={{ color: a.color }}>
-              <Icon size={36} strokeWidth={2.4} />
+            <g transform="translate(-17 -34)" style={{ color: a.color }}>
+              <Icon size={34} strokeWidth={2.4} />
             </g>
             <text
               textAnchor="middle"
-              dy="25"
-              fontSize="18"
+              dy="22"
+              fontSize="17"
               fontWeight={800}
               fill={a.color}
               letterSpacing={0.4}
@@ -363,7 +380,7 @@ function Tooltip({ node }: TooltipProps) {
   const cy = node.y + dy;
 
   const PAD = 4;
-  cx = Math.max(-445 + halfW + PAD, Math.min(445 - halfW - PAD, cx));
+  cx = Math.max(-455 + halfW + PAD, Math.min(455 - halfW - PAD, cx));
 
   return (
     <g

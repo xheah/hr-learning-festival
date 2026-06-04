@@ -49,7 +49,29 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        // Prefer Graphik (host via Adobe Fonts / Commercial Type), then Sofia Pro
+        // (Mostardesign / Adobe Fonts). Inter is loaded via next/font/google as a
+        // guaranteed offline-able fallback so the stack always resolves cleanly,
+        // and the OS sans fallbacks finish things off.
+        sans: [
+          '"Graphik"',
+          '"Sofia Pro"',
+          "var(--font-inter)",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          '"Segoe UI"',
+          "Roboto",
+          "sans-serif",
+        ],
+        display: [
+          '"Sofia Pro"',
+          '"Graphik"',
+          "var(--font-inter)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-out",
