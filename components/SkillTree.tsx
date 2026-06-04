@@ -20,14 +20,15 @@ interface AnchorInfo {
   icon: string;
 }
 
+const WEDGE_ARC = 360 / categories.length;
+const TIER_RADII = [150, 238, 322];
+
 function buildLayout(): { nodes: SkillNode[]; anchors: AnchorInfo[] } {
-  const wedgeArc = 60;
-  const tierRadii = [150, 238, 322];
   const nodes: SkillNode[] = [];
   const anchors: AnchorInfo[] = [];
 
   categories.forEach((cat, ci) => {
-    const anchorAngle = -90 + 60 * ci; // start at top, go clockwise
+    const anchorAngle = -90 + WEDGE_ARC * ci; // start at top, go clockwise
     anchors.push({
       id: cat.id,
       angle: anchorAngle,
@@ -42,8 +43,8 @@ function buildLayout(): { nodes: SkillNode[]; anchors: AnchorInfo[] } {
 
     [1, 2, 3].forEach((tier) => {
       const tierSkills = byTier[tier];
-      const r = tierRadii[tier - 1];
-      const arcDeg = wedgeArc * (tier === 1 ? 0.55 : tier === 2 ? 0.78 : 0.88);
+      const r = TIER_RADII[tier - 1];
+      const arcDeg = WEDGE_ARC * (tier === 1 ? 0.55 : tier === 2 ? 0.76 : 0.85);
       tierSkills.forEach((s, i) => {
         const t = tierSkills.length === 1 ? 0.5 : i / (tierSkills.length - 1);
         const angle = anchorAngle - arcDeg / 2 + arcDeg * t;
@@ -101,17 +102,18 @@ export default function SkillTree({
     >
       {/* Faint category wedges */}
       {anchors.map((a) => {
-        const startAngle = a.angle - 30;
-        const endAngle = a.angle + 30;
+        const startAngle = a.angle - WEDGE_ARC / 2;
+        const endAngle = a.angle + WEDGE_ARC / 2;
         const R = 360;
         const rad1 = (startAngle * Math.PI) / 180;
         const rad2 = (endAngle * Math.PI) / 180;
+        const largeArc = WEDGE_ARC > 180 ? 1 : 0;
         return (
           <path
             key={a.id}
             d={`M 0 0 L ${(Math.cos(rad1) * R).toFixed(1)} ${(
               Math.sin(rad1) * R
-            ).toFixed(1)} A ${R} ${R} 0 0 1 ${(
+            ).toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${(
               Math.cos(rad2) * R
             ).toFixed(1)} ${(Math.sin(rad2) * R).toFixed(1)} Z`}
             fill={a.color}
@@ -121,7 +123,7 @@ export default function SkillTree({
       })}
 
       {/* Tier rings */}
-      {[150, 238, 322].map((r) => (
+      {TIER_RADII.map((r) => (
         <circle
           key={r}
           r={r}

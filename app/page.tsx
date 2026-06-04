@@ -325,8 +325,9 @@ function RoadmapView({
         <div className="font-semibold mb-1">📸 Take a screenshot</div>
         <p className="text-xs opacity-75 leading-relaxed">
           This card is your takeaway from the booth. Screenshot it now — it
-          shows your starting point, your target role, and what to learn
-          next. Then come find the L&D team to plan the next step.
+          shows your starting point, your target role across HR, Finance, or
+          Admin, and what to learn next. Then come find us at the booth to
+          plan the next step.
         </p>
       </div>
     </div>

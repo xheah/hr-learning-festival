@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Skill Tree · HR Learning Festival",
   description:
-    "Map your skills, set your next career goal, and see the path to get there. A booth demo by HR Learning Festival.",
+    "Map your skills across HR, Finance and Admin, set your next career goal, and see the path to get there. A booth demo by HR Learning Festival.",
 };
 
 export const viewport: Viewport = {

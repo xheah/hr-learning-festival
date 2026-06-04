@@ -1,10 +1,4 @@
-export type CategoryId =
-  | "people-ops"
-  | "talent"
-  | "learning"
-  | "comp"
-  | "tech"
-  | "leadership";
+export type CategoryId = "hr" | "finance" | "admin";
 
 export interface Category {
   id: CategoryId;

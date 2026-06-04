@@ -1,10 +1,11 @@
 # Skill Tree · HR Learning Festival
 
 A mobile-first, client-side webapp for the HR Learning Festival booth. Visitors
-scan a QR code, pick a person from a small HR org, explore their skill tree,
-set a career goal, and walk away with a screenshot-able Career Roadmap. HR
-folks can also flip to **Team mode** and stage a complementary team for a
-project goal.
+scan a QR code, pick a person from a small back-office org spanning **HR,
+Finance and Admin**, explore their skill tree, set a career goal, and walk
+away with a screenshot-able Career Roadmap. Managers can also flip to
+**Team mode** and stage a complementary team for a project that needs people
+from any of the three sectors.
 
 Built with Next.js 14 (App Router), TypeScript, Tailwind CSS, and a hand-rolled
 SVG skill-tree renderer. No backend, no API calls — all data is pre-seeded.
@@ -13,10 +14,10 @@ SVG skill-tree renderer. No backend, no API calls — all data is pre-seeded.
 
 ## What's inside
 
-- **My Tree** — radial skill tree per person, with category wedges for People
-  Ops, Talent, L&D, Comp & Ben, HR Tech, and Leadership. Tier 1 skills sit close
-  to the centre; tier 3 sits at the edge. Acquired skills are filled and
-  connected by solid lines; gap skills are dashed and faded.
+- **My Tree** — radial skill tree per person, with one wedge per sector
+  (**HR**, **Finance**, **Admin**). Tier 1 skills sit close to the centre;
+  tier 3 sits at the edge. Acquired skills are filled and connected by solid
+  lines; gap skills are dashed and faded.
 - **Career goal** — pick a target role and the tree lights up which required
   skills you already have versus the ones you still need.
 - **Career Roadmap card** — a polished, screenshot-friendly takeaway with

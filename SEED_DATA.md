@@ -1,42 +1,39 @@
 # Seed Data Reference
 
-This app ships with a small, hand-crafted HR org so the booth demo works the
-moment the QR code is scanned. Everything lives in
-[`lib/data.ts`](lib/data.ts). This document describes the schema so you can
-swap in real org data without touching any UI code.
+This app ships with a small, hand-crafted back-office org spanning **HR,
+Finance and Admin** so the booth demo works the moment the QR code is
+scanned. Everything lives in [`lib/data.ts`](lib/data.ts). This document
+describes the schema so you can swap in real org data without touching any
+UI code.
 
 > The tree layout is **fully data-driven** — add or remove skills and the
-> radial tree re-flows. Just stay within the six categories (or extend them, see
-> below).
+> radial tree re-flows. The wedge geometry is derived from the number of
+> sectors (currently 3), so adding a fourth sector is also seamless (see
+> [Adding or removing sectors](#adding-or-removing-sectors) below).
 
 ---
 
-## Categories
+## Sectors (top-level categories)
 
 ```ts
 interface Category {
-  id: CategoryId;     // 'people-ops' | 'talent' | ...
-  name: string;       // "People Operations"
-  short: string;      // "People Ops"  — used as the tree label
+  id: CategoryId;     // 'hr' | 'finance' | 'admin'
+  name: string;       // "Human Resources"
+  short: string;      // "HR"  — used as the tree label
   color: string;      // hex, used for acquired skill fills and lines
   accent: string;     // softer hex, used for backgrounds
   icon: string;       // emoji
 }
 ```
 
-Six categories ship by default — each gets its own 60° wedge in the radial
-tree. If you change the count, also adjust the wedge geometry in
-`components/SkillTree.tsx` (look for `wedgeArc = 60` and the `-90 + 60 * ci`
-anchor calculation).
+Three sectors ship by default — each gets its own 120° wedge in the radial
+tree.
 
-| ID            | Domain                    |
-| ------------- | ------------------------- |
-| `people-ops`  | People Operations         |
-| `talent`      | Talent Acquisition        |
-| `learning`    | Learning & Development    |
-| `comp`        | Compensation & Benefits   |
-| `tech`        | HR Tech & Analytics       |
-| `leadership`  | Leadership & Strategy     |
+| ID        | Sector            |
+| --------- | ----------------- |
+| `hr`      | Human Resources   |
+| `finance` | Finance           |
+| `admin`   | Administration    |
 
 ---
 
@@ -56,12 +53,12 @@ interface Skill {
 
 **Tier guidance**
 
-- **Tier 1 — Foundational.** Most early-career people in this domain will
-  have these. Sits closest to the centre. Aim for 1–2 per category.
+- **Tier 1 — Foundational.** Most early-career people in this sector will
+  have these. Sits closest to the centre. Aim for 2–3 per sector.
 - **Tier 2 — Intermediate.** Mid-level capability built on the foundations.
-  Aim for 2–4 per category.
+  Aim for 4–6 per sector.
 - **Tier 3 — Advanced.** Strategic / leadership-level. Sits at the edge.
-  Aim for 1–2 per category.
+  Aim for 3–4 per sector.
 
 **Prerequisites** are visual — they draw a curved line between skills. They
 do **not** prevent someone from having a tier-3 skill without a tier-1; they
@@ -86,7 +83,9 @@ interface Person {
 
 Aim for ~6–10 people for the booth so the picker stays scannable. Mix
 seniority: at least one early-career person (a small tree to show growth
-potential) and one senior leader (a near-full tree).
+potential) and one senior leader (a near-full tree). Spread them across
+the three sectors so the team builder has something interesting to do —
+the seed ships with 3 HR, 3 Finance, and 2 Admin people.
 
 Each person's `skillIds` list defines what's filled in on their tree. Don't
 worry about including every prerequisite — the tree shows the prerequisite
@@ -101,7 +100,7 @@ story.
 interface Role {
   id: string;
   title: string;             // e.g. "HR Business Partner"
-  department: string;        // shown as a small tag
+  department: string;        // shown as a small tag, e.g. "HR" / "Finance" / "Admin"
   description: string;       // 1-sentence pitch
   requiredSkillIds: string[];   // must-haves to be considered ready
   niceToHaveSkillIds: string[]; // boosts, marked separately in the UI
@@ -122,15 +121,20 @@ team-builder feel impossible.
 
 ---
 
-## Adding or removing categories
+## Adding or removing sectors
 
-If you want to add a 7th category:
+The wedge arc and anchor angles are derived from `categories.length` in
+[`components/SkillTree.tsx`](components/SkillTree.tsx) (`WEDGE_ARC = 360 /
+categories.length`), so adding or removing a sector is a one-step change:
 
-1. Add the new `Category` entry to the `categories` array in `data.ts`.
-2. In [`components/SkillTree.tsx`](components/SkillTree.tsx) update:
-   - `wedgeArc = 60` → `360 / N`
-   - `anchorAngle = -90 + 60 * ci` → `-90 + (360 / N) * ci`
-3. The viewBox is already generous; you shouldn't need to change it.
+1. Add or remove a `Category` entry in the `categories` array in
+   [`lib/data.ts`](lib/data.ts) — give it an `id`, `color`, `icon`, and a short
+   label that fits in the outer ring.
+2. (Optional) Update `CategoryId` in [`lib/types.ts`](lib/types.ts) for type
+   safety on the new sector id.
+
+The viewBox is generous enough for 3–6 sectors; if you go beyond that the
+outer labels may need re-positioning.
 
 ---
 
