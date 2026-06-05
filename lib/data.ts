@@ -25,7 +25,7 @@ import {
   HeartPulse,
   Landmark,
   Leaf,
-  Map,
+  Map as MapIcon, // Aliased — bare `Map` would shadow the JS built-in `Map` class
   MessagesSquare,
   Mic,
   Mountain,
@@ -272,7 +272,7 @@ export const skills: Skill[] = [
     id: "ld-strategy",
     name: "L&D Strategy",
     category: "hr",
-    icon: Map,
+    icon: MapIcon,
     tier: 3,
     description:
       "Connecting learning investments to business outcomes.",
