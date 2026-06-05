@@ -486,13 +486,17 @@ function Tooltip({ node }: TooltipProps) {
           fill={node.categoryColor}
           opacity={0.97}
         />
+        {/* Dark legible text — using #1a1310 keeps contrast ≥ 4:1 on every
+         *  sector colour (white was unreadable over the Finance teal and
+         *  Admin honey hues). */}
         <text
           x={0}
           y={5}
           textAnchor="middle"
           fontSize="14"
-          fontWeight={600}
-          fill="#ffffff"
+          fontWeight={700}
+          fill="#1a1310"
+          letterSpacing={0.2}
         >
           {name}
         </text>
