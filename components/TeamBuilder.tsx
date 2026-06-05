@@ -38,9 +38,9 @@ export default function TeamBuilder() {
     const required = new Set(role.requiredSkillIds);
     return [...people]
       .map((p) => {
-        const cover = p.skillIds.filter((s) => required.has(s)).length;
-        const unique = p.skillIds.filter(
-          (s) => required.has(s) && !coveredIds.has(s)
+        const cover = p.skills.filter((s) => required.has(s.id)).length;
+        const unique = p.skills.filter(
+          (s) => required.has(s.id) && !coveredIds.has(s.id)
         ).length;
         return { person: p, cover, unique, selected: teamIds.has(p.id) };
       })

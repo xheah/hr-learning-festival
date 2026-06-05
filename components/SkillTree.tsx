@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { categories, skills } from "@/lib/data";
-import { Person, Role, Skill } from "@/lib/types";
+import { categories, getMastery, skills } from "@/lib/data";
+import { MasteryLevel, Person, Role, Skill } from "@/lib/types";
 
 interface SkillNode {
   skill: Skill;
@@ -31,7 +31,7 @@ function buildLayout(): { nodes: SkillNode[]; anchors: AnchorInfo[] } {
   const anchors: AnchorInfo[] = [];
 
   categories.forEach((cat, ci) => {
-    const anchorAngle = -90 + WEDGE_ARC * ci; // start at top, go clockwise
+    const anchorAngle = -90 + WEDGE_ARC * ci;
     anchors.push({
       id: cat.id,
       angle: anchorAngle,
@@ -73,13 +73,13 @@ interface Props {
   role?: Role | null;
   selectedSkillId?: string | null;
   onSelectSkill?: (s: Skill | null) => void;
+  /** When true the tree skips its entrance animation (used in compact / Compare view). */
+  noEntranceAnimation?: boolean;
 }
 
 const NODE_R = 28;
 const NODE_R_SELECTED = 32;
 const ICON_SIZE = 26;
-/** Gap in viewBox units between the skill circle edge and the tooltip's nearest edge.
- *  The viewBox spans 790 units (~440px screen), so 6 units ≈ 3.3px — comfortably ≥ 2px. */
 const TOOLTIP_MARGIN = 6;
 
 export default function SkillTree({
@@ -87,10 +87,16 @@ export default function SkillTree({
   role,
   selectedSkillId,
   onSelectSkill,
+  noEntranceAnimation,
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const { nodes, anchors } = useMemo(() => buildLayout(), []);
-  const haveSet = useMemo(() => new Set(person.skillIds), [person]);
+
+  // Mastery-aware membership: have if mastery > 0
+  const haveSet = useMemo(
+    () => new Set(person.skills.filter((s) => s.level > 0).map((s) => s.id)),
+    [person]
+  );
   const requiredSet = useMemo(
     () => new Set(role?.requiredSkillIds ?? []),
     [role]
@@ -106,6 +112,16 @@ export default function SkillTree({
     return m;
   }, [nodes]);
 
+  /** Per-skill entrance delay (ms) — tier 1 first, then tier 2, then tier 3. */
+  const delayMap = useMemo(() => {
+    const sorted = [...nodes].sort((a, b) => a.skill.tier - b.skill.tier);
+    const m = new Map<string, number>();
+    sorted.forEach((n, i) => {
+      m.set(n.skill.id, 80 + i * 22);
+    });
+    return m;
+  }, [nodes]);
+
   const hovered = hoveredId ? nodeMap.get(hoveredId) ?? null : null;
   const PersonIcon = person.icon;
 
@@ -117,7 +133,6 @@ export default function SkillTree({
       onClick={() => onSelectSkill?.(null)}
     >
       <defs>
-        {/* Soft drop shadow used by the sector label cards */}
         <filter id="label-shadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow
             dx="0"
@@ -128,6 +143,7 @@ export default function SkillTree({
           />
         </filter>
       </defs>
+
       {/* Faint category wedges */}
       {anchors.map((a) => {
         const startAngle = a.angle - WEDGE_ARC / 2;
@@ -163,10 +179,7 @@ export default function SkillTree({
         />
       ))}
 
-      {/* Category labels around the outer edge — pushed well clear of every skill node.
-       *  Each label is a "chip" card filled with the sector's accent tint, framed by
-       *  the saturated sector colour, lifted with a soft drop shadow. Icon and text
-       *  use the dark sector variant so they stay legible against the pale accent. */}
+      {/* Sector label chips */}
       {anchors.map((a) => {
         const r = 425;
         const rad = (a.angle * Math.PI) / 180;
@@ -208,7 +221,8 @@ export default function SkillTree({
         );
       })}
 
-      {/* Prereq edges */}
+      {/* Prereq edges — when both endpoints are acquired, the line "draws" in
+       *  with stroke-dashoffset animation timed to follow the destination node. */}
       {nodes.map((n) => {
         if (!n.skill.prerequisites) return null;
         return n.skill.prerequisites.map((pid) => {
@@ -216,19 +230,27 @@ export default function SkillTree({
           if (!from) return null;
           const haveBoth = haveSet.has(n.skill.id) && haveSet.has(pid);
           const required = requiredSet.has(n.skill.id);
-          const opacity = haveBoth ? 0.6 : required ? 0.35 : 0.18;
-          // Curve via a midpoint biased toward centre
+          const opacity = haveBoth ? 0.7 : required ? 0.35 : 0.18;
           const mx = (from.x + n.x) * 0.45;
           const my = (from.y + n.y) * 0.45;
+          const fromDelay = delayMap.get(from.skill.id) ?? 0;
+          const toDelay = delayMap.get(n.skill.id) ?? 0;
+          const lineDelay = Math.max(fromDelay, toDelay) + 200;
           return (
             <path
               key={`${pid}->${n.skill.id}`}
               d={`M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
               stroke={haveBoth ? n.categoryColor : "currentColor"}
-              strokeWidth={haveBoth ? 2 : 1}
+              strokeWidth={haveBoth ? 2.25 : 1}
               fill="none"
               opacity={opacity}
               strokeDasharray={haveBoth ? "" : "3 4"}
+              className={haveBoth && !noEntranceAnimation ? "line-drawn" : ""}
+              style={
+                haveBoth && !noEntranceAnimation
+                  ? { animationDelay: `${lineDelay}ms` }
+                  : undefined
+              }
             />
           );
         });
@@ -269,7 +291,8 @@ export default function SkillTree({
 
       {/* Skill nodes */}
       {nodes.map((n) => {
-        const have = haveSet.has(n.skill.id);
+        const level = getMastery(person, n.skill.id);
+        const have = level > 0;
         const required = requiredSet.has(n.skill.id);
         const nice = niceSet.has(n.skill.id);
         const isSelected = selectedSkillId === n.skill.id;
@@ -288,6 +311,7 @@ export default function SkillTree({
               ? n.categoryColor
               : "currentColor";
         const Icon = n.skill.icon;
+        const delay = delayMap.get(n.skill.id) ?? 0;
 
         return (
           <g
@@ -307,48 +331,66 @@ export default function SkillTree({
               transition: "opacity 220ms ease-in-out",
             }}
           >
-            {/* Bigger invisible touch target */}
-            <circle r={36} fill="transparent" />
-            {/* Target ring animation for required-but-missing */}
-            {required && !have && (
-              <circle
-                r={r + 5}
-                fill="none"
-                stroke={n.categoryColor}
-                strokeWidth={1.5}
-                opacity={0.55}
-              >
-                <animate
-                  attributeName="r"
-                  values={`${r + 4};${r + 10};${r + 4}`}
-                  dur="2.2s"
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="opacity"
-                  values="0.6;0.1;0.6"
-                  dur="2.2s"
-                  repeatCount="indefinite"
-                />
-              </circle>
-            )}
-            <circle
-              r={r}
-              fill={fill}
-              stroke={strokeColor}
-              strokeWidth={strokeWidth}
-              strokeDasharray={required && !have ? "4 3" : nice && !have ? "2 3" : ""}
-              className={`skill-circle ${isSelected || isHovered ? "skill-glow" : ""}`}
-            />
             <g
-              transform={`translate(${-ICON_SIZE / 2} ${-ICON_SIZE / 2})`}
-              pointerEvents="none"
+              className={noEntranceAnimation ? undefined : "node-in"}
+              style={
+                noEntranceAnimation ? undefined : { animationDelay: `${delay}ms` }
+              }
             >
-              <Icon
-                size={ICON_SIZE}
-                color={iconColor}
-                strokeWidth={have ? 2.25 : 2}
+              {/* Bigger invisible touch target */}
+              <circle r={36} fill="transparent" />
+              {/* Pulsing target ring for required-but-missing */}
+              {required && !have && (
+                <circle
+                  r={r + 5}
+                  fill="none"
+                  stroke={n.categoryColor}
+                  strokeWidth={1.5}
+                  opacity={0.55}
+                >
+                  <animate
+                    attributeName="r"
+                    values={`${r + 4};${r + 10};${r + 4}`}
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.6;0.1;0.6"
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              )}
+              {/* Mastery ring — sits just outside the node circle, filling as the
+               *  person progresses Practicing (33%) → Competent (66%) → Expert (100%). */}
+              {have && (
+                <MasteryRing
+                  r={r + 5}
+                  level={level}
+                  color={n.categoryColor}
+                />
+              )}
+              <circle
+                r={r}
+                fill={fill}
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeDasharray={
+                  required && !have ? "4 3" : nice && !have ? "2 3" : ""
+                }
+                className={`skill-circle ${isSelected || isHovered ? "skill-glow" : ""}`}
               />
+              <g
+                transform={`translate(${-ICON_SIZE / 2} ${-ICON_SIZE / 2})`}
+                pointerEvents="none"
+              >
+                <Icon
+                  size={ICON_SIZE}
+                  color={iconColor}
+                  strokeWidth={have ? 2.25 : 2}
+                />
+              </g>
             </g>
           </g>
         );
@@ -357,6 +399,52 @@ export default function SkillTree({
       {/* Hover tooltip */}
       {hovered && <Tooltip node={hovered} />}
     </svg>
+  );
+}
+
+function MasteryRing({
+  r,
+  level,
+  color,
+}: {
+  r: number;
+  level: MasteryLevel;
+  color: string;
+}) {
+  if (level <= 0) return null;
+  const circumference = 2 * Math.PI * r;
+  const portion = level / 3; // 1 → 33%, 2 → 66%, 3 → 100%
+  const offset = circumference * (1 - portion);
+  return (
+    <>
+      {/* Background ring (full circle, faint) */}
+      <circle
+        cx={0}
+        cy={0}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={3}
+        opacity={0.18}
+      />
+      {/* Mastery progress */}
+      <circle
+        cx={0}
+        cy={0}
+        r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform="rotate(-90)"
+        style={{
+          transition:
+            "stroke-dashoffset 360ms ease-in-out, stroke 240ms ease-in-out",
+        }}
+      />
+    </>
   );
 }
 
@@ -373,12 +461,6 @@ function Tooltip({ node }: TooltipProps) {
   const halfW = width / 2;
   const halfH = height / 2;
 
-  // Place the tooltip directly above the node when the node sits in the top
-  // half of the tree, directly below when it sits in the bottom half. This
-  // keeps the vertical gap between the node circle and the tooltip's nearest
-  // edge equal to exactly TOOLTIP_MARGIN, and means we can freely clamp the
-  // horizontal position to stay inside the viewBox without ever
-  // re-introducing overlap with the node.
   const placeAbove = node.y < 0;
   const dy =
     (NODE_R_SELECTED + TOOLTIP_MARGIN + halfH) * (placeAbove ? -1 : 1);

@@ -1,18 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Camera,
   Compass,
   PartyPopper,
+  RotateCcw,
   Sparkles,
   Target,
   X,
 } from "lucide-react";
-import { people, roles, getSkillGap } from "@/lib/data";
+import { roles, getSkillGap } from "@/lib/data";
 import { Person, Role, Skill } from "@/lib/types";
+import { usePeople } from "@/lib/storage";
 import SkillTree from "@/components/SkillTree";
 import PersonPicker from "@/components/PersonPicker";
 import RolePicker from "@/components/RolePicker";
@@ -20,27 +21,73 @@ import SkillSheet from "@/components/SkillSheet";
 import RoadmapCard from "@/components/RoadmapCard";
 import TeamBuilder from "@/components/TeamBuilder";
 import ThemeToggle from "@/components/ThemeToggle";
+import NewPersonForm from "@/components/NewPersonForm";
+import CompareView from "@/components/CompareView";
+import KioskMode from "@/components/KioskMode";
+import PdfDownload from "@/components/PdfDownload";
 
-type Mode = "explorer" | "team";
+type Mode = "explorer" | "team" | "compare";
 type View = "tree" | "roadmap";
 
 export default function Page() {
+  const {
+    hydrated,
+    people,
+    addPerson,
+    removePerson,
+    restoreSeed,
+    hiddenCount,
+  } = usePeople();
+
   const [mode, setMode] = useState<Mode>("explorer");
   const [view, setView] = useState<View>("tree");
-  const [person, setPerson] = useState<Person>(people[7]); // Tomás — junior, big tree to fill
+  const [personId, setPersonId] = useState<string | null>(null);
   const [role, setRole] = useState<Role | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [pickingGoal, setPickingGoal] = useState(false);
   const [pickingPerson, setPickingPerson] = useState(false);
+  const [creatingPerson, setCreatingPerson] = useState(false);
+  const [isKiosk, setIsKiosk] = useState(false);
+
+  // Read URL params on initial load (for QR deep links, kiosk mode).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("kiosk") === "1") setIsKiosk(true);
+    const p = params.get("p");
+    if (p) setPersonId(p);
+    const r = params.get("r");
+    if (r) {
+      const found = roles.find((x) => x.id === r);
+      if (found) setRole(found);
+    }
+    const v = params.get("view");
+    if (v === "roadmap") setView("roadmap");
+  }, []);
+
+  // After hydration, pick a sensible default person if none chosen yet.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (personId && people.some((p) => p.id === personId)) return;
+    if (people.length > 0) setPersonId(people[people.length - 1]!.id);
+  }, [hydrated, personId, people]);
+
+  const person: Person | null = useMemo(
+    () => people.find((p) => p.id === personId) ?? null,
+    [people, personId]
+  );
 
   const gap = useMemo(
-    () => (role ? getSkillGap(person, role) : null),
+    () => (role && person ? getSkillGap(person, role) : null),
     [person, role]
   );
 
+  if (isKiosk) {
+    return <KioskMode people={people} />;
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-[var(--bg)]/85 backdrop-blur border-b border-[var(--line)]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -59,42 +106,42 @@ export default function Page() {
 
           <div className="flex items-center gap-2">
             <div className="flex rounded-full border border-[var(--line)] bg-[var(--bg-elev)] p-0.5 text-xs">
-              <button
+              <ModeTab
+                active={mode === "explorer"}
                 onClick={() => {
                   setMode("explorer");
                   setView("tree");
                   setSelectedSkill(null);
                 }}
-                className={`px-3 py-1.5 rounded-full transition ${
-                  mode === "explorer"
-                    ? "bg-brand-500 text-white font-semibold"
-                    : "opacity-75"
-                }`}
               >
                 My Tree
-              </button>
-              <button
+              </ModeTab>
+              <ModeTab
+                active={mode === "compare"}
+                onClick={() => {
+                  setMode("compare");
+                  setSelectedSkill(null);
+                }}
+              >
+                Compare
+              </ModeTab>
+              <ModeTab
+                active={mode === "team"}
                 onClick={() => {
                   setMode("team");
                   setSelectedSkill(null);
                 }}
-                className={`px-3 py-1.5 rounded-full transition ${
-                  mode === "team"
-                    ? "bg-brand-500 text-white font-semibold"
-                    : "opacity-75"
-                }`}
               >
                 Team
-              </button>
+              </ModeTab>
             </div>
             <ThemeToggle />
           </div>
         </div>
       </header>
 
-      {/* Main */}
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 py-4">
-        {mode === "explorer" && view === "tree" && (
+        {mode === "explorer" && view === "tree" && person && (
           <ExplorerView
             person={person}
             role={role}
@@ -107,7 +154,7 @@ export default function Page() {
           />
         )}
 
-        {mode === "explorer" && view === "roadmap" && role && (
+        {mode === "explorer" && view === "roadmap" && person && role && (
           <RoadmapView
             person={person}
             role={role}
@@ -115,13 +162,26 @@ export default function Page() {
           />
         )}
 
+        {mode === "compare" && (
+          <div className="animate-fade-in">
+            <div className="mb-3">
+              <h2 className="text-lg font-bold">Compare two people</h2>
+              <p className="text-xs opacity-70 mt-0.5">
+                Pick anyone on each side. See what they share, and where each
+                of them is uniquely strong.
+              </p>
+            </div>
+            <CompareView people={people} />
+          </div>
+        )}
+
         {mode === "team" && (
           <div className="animate-fade-in">
             <div className="mb-3">
               <h2 className="text-lg font-bold">Build a complementary team</h2>
               <p className="text-xs opacity-70 mt-0.5">
-                Pick a role to staff. The app suggests who covers what — toggle people in
-                or out to balance the squad.
+                Pick a role to staff. The app suggests who covers what — toggle
+                people in or out to balance the squad.
               </p>
             </div>
             <TeamBuilder />
@@ -135,13 +195,50 @@ export default function Page() {
           onClose={() => setPickingPerson(false)}
           title="Whose tree do you want to see?"
           size="lg"
+          extra={
+            hiddenCount > 0 ? (
+              <button
+                onClick={() => restoreSeed()}
+                className="text-[11px] inline-flex items-center gap-1 opacity-70 hover:opacity-100"
+              >
+                <RotateCcw size={11} strokeWidth={2.5} />
+                Restore {hiddenCount}
+              </button>
+            ) : undefined
+          }
         >
           <PersonPicker
             people={people}
-            selectedId={person.id}
+            selectedId={personId ?? null}
             onSelect={(p) => {
-              setPerson(p);
+              setPersonId(p.id);
               setPickingPerson(false);
+            }}
+            onCreate={() => {
+              setPickingPerson(false);
+              setCreatingPerson(true);
+            }}
+            onRemove={(p) => {
+              removePerson(p.id);
+              if (p.id === personId) setPersonId(null);
+            }}
+          />
+        </Sheet>
+      )}
+
+      {/* Modal: New person */}
+      {creatingPerson && (
+        <Sheet
+          onClose={() => setCreatingPerson(false)}
+          title="Build your tree"
+          size="lg"
+        >
+          <NewPersonForm
+            onCancel={() => setCreatingPerson(false)}
+            onSubmit={(input) => {
+              const created = addPerson(input);
+              setPersonId(created.id);
+              setCreatingPerson(false);
             }}
           />
         </Sheet>
@@ -162,13 +259,36 @@ export default function Page() {
       )}
 
       {/* Bottom sheet: skill detail */}
-      <SkillSheet
-        skill={selectedSkill}
-        person={person}
-        role={role}
-        onClose={() => setSelectedSkill(null)}
-      />
+      {person && (
+        <SkillSheet
+          skill={selectedSkill}
+          person={person}
+          role={role}
+          onClose={() => setSelectedSkill(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function ModeTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full transition ${
+        active ? "bg-brand-500 text-white font-semibold" : "opacity-75"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -209,7 +329,7 @@ function ExplorerView({
         <div className="min-w-0 flex-1 text-left">
           <div className="text-sm font-bold truncate">{person.name}</div>
           <div className="text-[11px] opacity-70 truncate">
-            {person.currentRole} · {person.skillIds.length} skills
+            {person.currentRole} · {person.skills.length} skills
           </div>
         </div>
         <div className="text-[10px] uppercase tracking-wide opacity-65 px-2 py-1 rounded-full border border-[var(--line)]">
@@ -217,7 +337,7 @@ function ExplorerView({
         </div>
       </button>
 
-      {/* Goal pill — lavender accent when set */}
+      {/* Goal pill */}
       <button
         onClick={onPickGoal}
         className={`w-full flex items-center gap-3 p-3 rounded-2xl border mb-3 active:scale-[0.99] transition ${
@@ -253,17 +373,17 @@ function ExplorerView({
         )}
       </button>
 
-      {/* Tree */}
+      {/* Tree — re-key on person to re-trigger the entrance animation */}
       <div className="relative rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] overflow-hidden">
         <div className="aspect-square w-full">
           <SkillTree
+            key={person.id}
             person={person}
             role={role}
             selectedSkillId={selectedSkill?.id ?? null}
             onSelectSkill={onSelectSkill}
           />
         </div>
-        {/* Legend */}
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] opacity-75 pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
@@ -362,18 +482,7 @@ function RoadmapView({
         <span>Back to tree</span>
       </button>
       <RoadmapCard person={person} role={role} />
-      <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-4 text-sm">
-        <div className="font-semibold mb-1 flex items-center gap-1.5">
-          <Camera size={16} strokeWidth={2.25} />
-          <span>Take a screenshot</span>
-        </div>
-        <p className="text-xs opacity-75 leading-relaxed">
-          This card is your takeaway from the booth. Screenshot it now — it
-          shows your starting point, your target role across HR, Finance, or
-          Admin, and what to learn next. Then come find us at the booth to
-          plan the next step.
-        </p>
-      </div>
+      <PdfDownload person={person} role={role} />
     </div>
   );
 }
@@ -383,11 +492,13 @@ function Sheet({
   onClose,
   title,
   size = "md",
+  extra,
 }: {
   children: React.ReactNode;
   onClose: () => void;
   title: string;
   size?: "md" | "lg";
+  extra?: React.ReactNode;
 }) {
   const maxWidth = size === "lg" ? "sm:max-w-lg" : "sm:max-w-md";
   return (
@@ -396,19 +507,22 @@ function Sheet({
       onClick={onClose}
     >
       <div
-        className={`w-full ${maxWidth} bg-[var(--bg-elev)] rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-[var(--line)] shadow-2xl animate-pop-in max-h-[80vh] overflow-y-auto`}
+        className={`w-full ${maxWidth} bg-[var(--bg-elev)] rounded-t-3xl sm:rounded-3xl p-5 border-t sm:border border-[var(--line)] shadow-2xl animate-pop-in max-h-[85vh] overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--line)] sm:hidden" />
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <div className="text-sm font-bold">{title}</div>
-          <button
-            onClick={onClose}
-            className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center opacity-70 hover:opacity-100"
-            aria-label="Close"
-          >
-            <X size={16} strokeWidth={2.25} />
-          </button>
+          <div className="flex items-center gap-2">
+            {extra}
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full bg-[var(--bg)] grid place-items-center opacity-70 hover:opacity-100"
+              aria-label="Close"
+            >
+              <X size={16} strokeWidth={2.25} />
+            </button>
+          </div>
         </div>
         {children}
       </div>

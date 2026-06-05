@@ -67,6 +67,41 @@ body {
   animation: tooltipPop 180ms ease-in-out both;
 }
 
+/* Skill node entrance — staggered pop-in from the centre outward */
+@keyframes nodeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.node-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nodeIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Prereq line — drawn in stroke as the dependency settles into place */
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.line-drawn {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: drawLine 900ms ease-out forwards;
+}
+
 /* Compact scrollbar on mobile */
 ::-webkit-scrollbar {
   width: 6px;
