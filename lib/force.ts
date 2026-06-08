@@ -59,26 +59,28 @@ export interface TreeLink extends SimulationLinkDatum<TreeNode> {
   strength?: number;
 }
 
-/** Pinned positions for the sector hub nodes. These match the static label
- *  chip positions in SkillTree (radius 425, anchor angles -90°, 30°, 150°)
- *  so the chip *is* the hub visually in both layouts. */
+/** Pinned positions for the sector hub nodes in graph mode. Pulled in to
+ *  radius 280 so the cluster of skills attached to each hub stays inside
+ *  the ±470 viewBox even with a 120-unit link spring. (Radial mode keeps
+ *  using the static chip rects at radius 425.) */
+export const SECTOR_HUB_RADIUS = 280;
 export const SECTOR_HUB_POS: Record<SectorOrCentre, { x: number; y: number }> = {
-  hr: { x: 0, y: -425 },
+  hr: { x: 0, y: -SECTOR_HUB_RADIUS },
   finance: {
-    x: Math.cos((30 * Math.PI) / 180) * 425,
-    y: Math.sin((30 * Math.PI) / 180) * 425,
+    x: Math.cos((30 * Math.PI) / 180) * SECTOR_HUB_RADIUS,
+    y: Math.sin((30 * Math.PI) / 180) * SECTOR_HUB_RADIUS,
   },
   admin: {
-    x: Math.cos((150 * Math.PI) / 180) * 425,
-    y: Math.sin((150 * Math.PI) / 180) * 425,
+    x: Math.cos((150 * Math.PI) / 180) * SECTOR_HUB_RADIUS,
+    y: Math.sin((150 * Math.PI) / 180) * SECTOR_HUB_RADIUS,
   },
   centre: { x: 0, y: 0 },
 };
 
-/** Per-node collide radius. Sector hubs are roomy so skills don't crash into
- *  the chip label rect (120×76). Centre is a chunky person avatar. */
+/** Per-node collide radius. Hubs sized to fit the 44-radius circular node
+ *  plus a small buffer; skills are standard; centre is the chunky person. */
 function collideRadius(n: TreeNode): number {
-  if (n.kind === "sector") return 75;
+  if (n.kind === "sector") return 55;
   if (n.kind === "centre") return 50;
   return 36;
 }

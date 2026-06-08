@@ -5,6 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { categories, categoryById, getMastery, skills } from "@/lib/data";
 import { MasteryLevel, Person, Role, Skill } from "@/lib/types";
 import {
+  SECTOR_HUB_POS,
   type TreeLink,
   type TreeNode,
   useForceSimulation,
@@ -140,21 +141,19 @@ export default function SkillTree({
         fy: 0,
       },
     ];
-    // One pinned hub per sector at radius 425 along its anchor angle —
-    // exactly where the chip label is rendered, so the chip *is* the hub.
-    for (let i = 0; i < categories.length; i++) {
-      const cat = categories[i]!;
-      const angle = (-90 + WEDGE_ARC * i) * (Math.PI / 180);
-      const x = Math.cos(angle) * 425;
-      const y = Math.sin(angle) * 425;
+    // One pinned hub per sector at the shared SECTOR_HUB_POS — the chip
+    // (radial mode) and the circular hub node (graph mode) both render
+    // at the same coordinates.
+    for (const cat of categories) {
+      const pos = SECTOR_HUB_POS[cat.id];
       out.push({
         id: sectorHubId(cat.id),
         kind: "sector",
         sector: cat.id,
-        x,
-        y,
-        fx: x,
-        fy: y,
+        x: pos.x,
+        y: pos.y,
+        fx: pos.x,
+        fy: pos.y,
       });
     }
     for (const r of radialNodes) {
@@ -172,12 +171,14 @@ export default function SkillTree({
   const simLinks = useMemo<TreeLink[]>(() => {
     const out: TreeLink[] = [];
     // Sector hub → skill: the dominant spring. Every skill attaches to its
-    // sector label. Distance 160 lets the cluster fan out below the chip.
+    // sector label. Distance 120 keeps the cluster compact enough that the
+    // outermost skill stays inside the viewBox (hub_r 280 + 120 + skill
+    // collide 36 ≈ 436 ≪ 470).
     for (const r of radialNodes) {
       out.push({
         source: sectorHubId(r.skill.category),
         target: r.skill.id,
-        distance: 160,
+        distance: 120,
         strength: 0.55,
       });
     }
@@ -198,7 +199,7 @@ export default function SkillTree({
       out.push({
         source: "__centre",
         target: skillId,
-        distance: 220,
+        distance: 180,
         strength: 0.12,
       });
     }
@@ -332,17 +333,13 @@ export default function SkillTree({
         radialNodes.map((rn) => {
           const cat = categoryById[rn.skill.category];
           if (!cat) return null;
-          const hub = anchors.find((a) => a.id === rn.skill.category);
-          if (!hub) return null;
-          const rad = (hub.angle * Math.PI) / 180;
-          const hubX = Math.cos(rad) * 425;
-          const hubY = Math.sin(rad) * 425;
+          const hubPos = SECTOR_HUB_POS[rn.skill.category];
           const skillPos = getPos(rn.skill.id);
           return (
             <line
               key={`spoke-${rn.skill.id}`}
-              x1={hubX.toFixed(1)}
-              y1={hubY.toFixed(1)}
+              x1={hubPos.x.toFixed(1)}
+              y1={hubPos.y.toFixed(1)}
               x2={skillPos.x.toFixed(1)}
               y2={skillPos.y.toFixed(1)}
               stroke={cat.color}
@@ -352,47 +349,92 @@ export default function SkillTree({
           );
         })}
 
-      {/* Sector label chips — same in both layouts */}
-      {anchors.map((a) => {
-        const r = 425;
-        const rad = (a.angle * Math.PI) / 180;
-        const lx = Math.cos(rad) * r;
-        const ly = Math.sin(rad) * r;
-        const Icon = a.icon;
-        return (
-          <g
-            key={a.id + "-label"}
-            transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}
-          >
-            <rect
-              x={-60}
-              y={-38}
-              width={120}
-              height={76}
-              rx={18}
-              ry={18}
-              fill={a.accent}
-              stroke={a.color}
-              strokeWidth={2.75}
-              filter="url(#label-shadow)"
-            />
-            <g transform="translate(-17 -28)" style={{ color: a.darkColor }}>
-              <Icon size={34} strokeWidth={2.4} />
-            </g>
-            <text
-              textAnchor="middle"
-              dy="28"
-              fontSize="17"
-              fontWeight={800}
-              fill={a.darkColor}
-              letterSpacing={0.4}
-              fontFamily="var(--font-display), var(--font-sans), system-ui, sans-serif"
+      {/* Sector labels.
+       *  Radial mode → chip rectangles at the outer edge (radius 425).
+       *  Graph mode  → circular hub nodes at SECTOR_HUB_POS that visually
+       *                match the skill nodes (just bigger), with the icon
+       *                and short name stacked inside the circle. */}
+      {!isGraph &&
+        anchors.map((a) => {
+          const r = 425;
+          const rad = (a.angle * Math.PI) / 180;
+          const lx = Math.cos(rad) * r;
+          const ly = Math.sin(rad) * r;
+          const Icon = a.icon;
+          return (
+            <g
+              key={a.id + "-label"}
+              transform={`translate(${lx.toFixed(1)} ${ly.toFixed(1)})`}
             >
-              {a.name}
-            </text>
-          </g>
-        );
-      })}
+              <rect
+                x={-60}
+                y={-38}
+                width={120}
+                height={76}
+                rx={18}
+                ry={18}
+                fill={a.accent}
+                stroke={a.color}
+                strokeWidth={2.75}
+                filter="url(#label-shadow)"
+              />
+              <g transform="translate(-17 -28)" style={{ color: a.darkColor }}>
+                <Icon size={34} strokeWidth={2.4} />
+              </g>
+              <text
+                textAnchor="middle"
+                dy="28"
+                fontSize="17"
+                fontWeight={800}
+                fill={a.darkColor}
+                letterSpacing={0.4}
+                fontFamily="var(--font-display), var(--font-sans), system-ui, sans-serif"
+              >
+                {a.name}
+              </text>
+            </g>
+          );
+        })}
+
+      {isGraph &&
+        anchors.map((a) => {
+          const pos = SECTOR_HUB_POS[a.id as keyof typeof SECTOR_HUB_POS];
+          if (!pos) return null;
+          const Icon = a.icon;
+          return (
+            <g
+              key={a.id + "-hub"}
+              transform={`translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})`}
+            >
+              <circle
+                r={44}
+                fill={a.accent}
+                stroke={a.color}
+                strokeWidth={3}
+                filter="url(#label-shadow)"
+              />
+              <g
+                transform="translate(-14 -25)"
+                pointerEvents="none"
+                style={{ color: a.darkColor }}
+              >
+                <Icon size={28} strokeWidth={2.4} />
+              </g>
+              <text
+                textAnchor="middle"
+                dy="22"
+                fontSize="12"
+                fontWeight={800}
+                fill={a.darkColor}
+                letterSpacing={0.6}
+                pointerEvents="none"
+                fontFamily="var(--font-display), var(--font-sans), system-ui, sans-serif"
+              >
+                {a.name}
+              </text>
+            </g>
+          );
+        })}
 
       {/* Prereq edges — endpoint positions are live in graph mode */}
       {radialNodes.map((rn) => {

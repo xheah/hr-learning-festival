@@ -17,15 +17,17 @@ import {
   forceSimulation,
 } from "d3-force";
 
+const HUB_RADIUS = 280;
 const HUB_POS = {
-  hr:      { x: 0,                                       y: -425 },
-  finance: { x: Math.cos((30 * Math.PI) / 180) * 425,    y: Math.sin((30 * Math.PI) / 180) * 425 },
-  admin:   { x: Math.cos((150 * Math.PI) / 180) * 425,   y: Math.sin((150 * Math.PI) / 180) * 425 },
-  centre:  { x: 0,                                       y: 0 },
+  hr:      { x: 0,                                              y: -HUB_RADIUS },
+  finance: { x: Math.cos((30 * Math.PI) / 180) * HUB_RADIUS,    y: Math.sin((30 * Math.PI) / 180) * HUB_RADIUS },
+  admin:   { x: Math.cos((150 * Math.PI) / 180) * HUB_RADIUS,   y: Math.sin((150 * Math.PI) / 180) * HUB_RADIUS },
+  centre:  { x: 0,                                              y: 0 },
 };
+const LINK_DIST = 120;
 
 const collideRadius = (n) => {
-  if (n.kind === "sector") return 75;
+  if (n.kind === "sector") return 55;
   if (n.kind === "centre") return 50;
   return 36;
 };
@@ -51,12 +53,12 @@ const skillSector = Object.fromEntries(
 
 const links = [
   // Sector hub → skill (primary spring)
-  { source: "hub_hr",      target: "hr-a",  distance: 160, strength: 0.55 },
-  { source: "hub_hr",      target: "hr-b",  distance: 160, strength: 0.55 },
-  { source: "hub_finance", target: "fin-a", distance: 160, strength: 0.55 },
-  { source: "hub_finance", target: "fin-b", distance: 160, strength: 0.55 },
-  { source: "hub_admin",   target: "adm-a", distance: 160, strength: 0.55 },
-  { source: "hub_admin",   target: "adm-b", distance: 160, strength: 0.55 },
+  { source: "hub_hr",      target: "hr-a",  distance: LINK_DIST, strength: 0.55 },
+  { source: "hub_hr",      target: "hr-b",  distance: LINK_DIST, strength: 0.55 },
+  { source: "hub_finance", target: "fin-a", distance: LINK_DIST, strength: 0.55 },
+  { source: "hub_finance", target: "fin-b", distance: LINK_DIST, strength: 0.55 },
+  { source: "hub_admin",   target: "adm-a", distance: LINK_DIST, strength: 0.55 },
+  { source: "hub_admin",   target: "adm-b", distance: LINK_DIST, strength: 0.55 },
   // Sample prereq
   { source: "hr-a",  target: "hr-b",  distance: 70, strength: 0.7 },
   { source: "fin-a", target: "fin-b", distance: 70, strength: 0.7 },
@@ -121,7 +123,7 @@ for (const id of ["hr-a", "hr-b", "fin-a", "fin-b", "adm-a", "adm-b"]) {
   const d = dist(skill, hub);
   ok(
     `${id} close to ${skillSector[id]} hub`,
-    d < 260,
+    d < 200,
     `→ ${d.toFixed(0)} units from hub`
   );
 }
@@ -129,14 +131,28 @@ for (const id of ["hr-a", "hr-b", "fin-a", "fin-b", "adm-a", "adm-b"]) {
 // 4. Sector links settle in a sensible band around their target distance.
 const resolve = (ref) => (typeof ref === "string" ? get(ref) : ref);
 for (const l of links) {
-  if (l.distance !== 160) continue;
+  if (l.distance !== LINK_DIST) continue;
   const a = resolve(l.source);
   const b = resolve(l.target);
   const d = dist(a, b);
   ok(
-    `${typeof l.source === "string" ? l.source : l.source.id}↔${typeof l.target === "string" ? l.target : l.target.id} near 160`,
-    d >= 60 && d <= 320,
+    `${typeof l.source === "string" ? l.source : l.source.id}↔${typeof l.target === "string" ? l.target : l.target.id} near ${LINK_DIST}`,
+    d >= 50 && d <= 240,
     `→ ${d.toFixed(0)}`
+  );
+}
+
+// 4b. Every skill stays inside the ±470 viewBox (no drift outside).
+for (const id of ["hr-a", "hr-b", "fin-a", "fin-b", "adm-a", "adm-b"]) {
+  const skill = get(id);
+  const VIEWBOX = 470;
+  const COLLIDE = 36;
+  const insideX = Math.abs(skill.x) + COLLIDE <= VIEWBOX;
+  const insideY = Math.abs(skill.y) + COLLIDE <= VIEWBOX;
+  ok(
+    `${id} inside viewBox`,
+    insideX && insideY,
+    `→ (${skill.x.toFixed(0)}, ${skill.y.toFixed(0)})`
   );
 }
 
