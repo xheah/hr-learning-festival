@@ -2,10 +2,9 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { categories, getMastery, skills } from "@/lib/data";
+import { categories, categoryById, getMastery, skills } from "@/lib/data";
 import { MasteryLevel, Person, Role, Skill } from "@/lib/types";
 import {
-  SECTOR_ANCHOR,
   type TreeLink,
   type TreeNode,
   useForceSimulation,
@@ -124,8 +123,11 @@ export default function SkillTree({
   );
 
   // ─── Force simulation (graph mode) ─────────────────────────
-  // Built unconditionally so React hook order is stable; the hook itself
-  // skips its setup when graph mode isn't active.
+  // Built unconditionally so React hook order is stable. Includes one
+  // sector hub node per sector — pinned at the label chip position — so
+  // every skill physically attaches to its sector label via a link force.
+  const sectorHubId = (catId: string) => `__sector_${catId}`;
+
   const simNodes = useMemo<TreeNode[]>(() => {
     const out: TreeNode[] = [
       {
@@ -138,6 +140,23 @@ export default function SkillTree({
         fy: 0,
       },
     ];
+    // One pinned hub per sector at radius 425 along its anchor angle —
+    // exactly where the chip label is rendered, so the chip *is* the hub.
+    for (let i = 0; i < categories.length; i++) {
+      const cat = categories[i]!;
+      const angle = (-90 + WEDGE_ARC * i) * (Math.PI / 180);
+      const x = Math.cos(angle) * 425;
+      const y = Math.sin(angle) * 425;
+      out.push({
+        id: sectorHubId(cat.id),
+        kind: "sector",
+        sector: cat.id,
+        x,
+        y,
+        fx: x,
+        fy: y,
+      });
+    }
     for (const r of radialNodes) {
       out.push({
         id: r.skill.id,
@@ -152,6 +171,17 @@ export default function SkillTree({
 
   const simLinks = useMemo<TreeLink[]>(() => {
     const out: TreeLink[] = [];
+    // Sector hub → skill: the dominant spring. Every skill attaches to its
+    // sector label. Distance 160 lets the cluster fan out below the chip.
+    for (const r of radialNodes) {
+      out.push({
+        source: sectorHubId(r.skill.category),
+        target: r.skill.id,
+        distance: 160,
+        strength: 0.55,
+      });
+    }
+    // Prereq links — keep the within-sector dependency structure visible.
     for (const r of radialNodes) {
       for (const pid of r.skill.prerequisites ?? []) {
         out.push({
@@ -162,12 +192,14 @@ export default function SkillTree({
         });
       }
     }
+    // Acquired skills get a subtle extra pull toward the person so they
+    // float a little nearer the centre.
     for (const skillId of haveSet) {
       out.push({
         source: "__centre",
         target: skillId,
-        distance: 140,
-        strength: 0.25,
+        distance: 220,
+        strength: 0.12,
       });
     }
     return out;
@@ -293,21 +325,29 @@ export default function SkillTree({
         </>
       )}
 
-      {/* Soft sector anchor dots in graph mode — barely-visible reminder of where
-       *  the simulation is pulling each sector. */}
+      {/* Sector → skill spokes in graph mode — faint hub-and-spoke lines
+       *  so visitors see which label each skill belongs to. Rendered
+       *  before nodes so they sit behind everything. */}
       {isGraph &&
-        (["hr", "finance", "admin"] as const).map((sector) => {
-          const a = SECTOR_ANCHOR[sector];
-          const cat = categories.find((c) => c.id === sector);
+        radialNodes.map((rn) => {
+          const cat = categoryById[rn.skill.category];
           if (!cat) return null;
+          const hub = anchors.find((a) => a.id === rn.skill.category);
+          if (!hub) return null;
+          const rad = (hub.angle * Math.PI) / 180;
+          const hubX = Math.cos(rad) * 425;
+          const hubY = Math.sin(rad) * 425;
+          const skillPos = getPos(rn.skill.id);
           return (
-            <circle
-              key={`anchor-${sector}`}
-              cx={a.x}
-              cy={a.y}
-              r={4}
-              fill={cat.color}
-              opacity={0.2}
+            <line
+              key={`spoke-${rn.skill.id}`}
+              x1={hubX.toFixed(1)}
+              y1={hubY.toFixed(1)}
+              x2={skillPos.x.toFixed(1)}
+              y2={skillPos.y.toFixed(1)}
+              stroke={cat.color}
+              strokeWidth={0.8}
+              opacity={0.22}
             />
           );
         })}

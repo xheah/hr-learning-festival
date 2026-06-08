@@ -8,14 +8,19 @@
  *   3. Calls React state updates so the render reflects the live positions.
  *   4. Exposes drag handlers that pin / re-anchor nodes.
  *
- * Forces tuned for ~36 skill nodes + 1 centre node in a ±470 viewBox:
+ * Architecture:
+ *   - One *centre* node (the person), pinned at (0, 0). Not draggable.
+ *   - One *sector* hub per category (HR, Finance, Admin), pinned at the same
+ *     positions as the static label chips. Not draggable — chip ≡ hub.
+ *   - One *skill* node per skill, connected to its sector hub via a link
+ *     spring. Free to be dragged, pins where dropped.
+ *
+ * Forces:
  *   - manyBody (repel) at -220 keeps nodes apart but lets dense sectors cluster.
  *   - link force pulls connected nodes to a target distance.
- *   - sector anchors (forceX / forceY) softly pull HR up, Finance down-right,
- *     Admin down-left so the tree retains its taught spatial meaning even
- *     after the simulation jostles it.
- *   - collide stops nodes from overlapping their visual circles.
- *   - centre is a tiny pull toward (0, 0) so floating islands drift back in.
+ *   - faint centre (0.02) keeps drifting islands from leaving the canvas.
+ *   - collide is per-kind — sector hubs are roomy enough that skills don't
+ *     crash into their chip rect.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -25,8 +30,6 @@ import {
   forceLink,
   forceManyBody,
   forceSimulation,
-  forceX,
-  forceY,
   type Simulation,
   type SimulationLinkDatum,
   type SimulationNodeDatum,
@@ -34,10 +37,11 @@ import {
 import type { CategoryId } from "./types";
 
 export type SectorOrCentre = CategoryId | "centre";
+export type NodeKind = "skill" | "centre" | "sector";
 
 export interface TreeNode extends SimulationNodeDatum {
   id: string;
-  kind: "skill" | "centre";
+  kind: NodeKind;
   sector: SectorOrCentre;
   // d3-force mutates these:
   x: number;
@@ -55,14 +59,29 @@ export interface TreeLink extends SimulationLinkDatum<TreeNode> {
   strength?: number;
 }
 
-/** Soft sector anchor coordinates, matching the radial layout's anchor points
- *  so visitors recognise the same spatial mapping after switching. */
-export const SECTOR_ANCHOR: Record<SectorOrCentre, { x: number; y: number }> = {
-  hr: { x: 0, y: -260 },
-  finance: { x: 260, y: 150 },
-  admin: { x: -260, y: 150 },
+/** Pinned positions for the sector hub nodes. These match the static label
+ *  chip positions in SkillTree (radius 425, anchor angles -90°, 30°, 150°)
+ *  so the chip *is* the hub visually in both layouts. */
+export const SECTOR_HUB_POS: Record<SectorOrCentre, { x: number; y: number }> = {
+  hr: { x: 0, y: -425 },
+  finance: {
+    x: Math.cos((30 * Math.PI) / 180) * 425,
+    y: Math.sin((30 * Math.PI) / 180) * 425,
+  },
+  admin: {
+    x: Math.cos((150 * Math.PI) / 180) * 425,
+    y: Math.sin((150 * Math.PI) / 180) * 425,
+  },
   centre: { x: 0, y: 0 },
 };
+
+/** Per-node collide radius. Sector hubs are roomy so skills don't crash into
+ *  the chip label rect (120×76). Centre is a chunky person avatar. */
+function collideRadius(n: TreeNode): number {
+  if (n.kind === "sector") return 75;
+  if (n.kind === "centre") return 50;
+  return 36;
+}
 
 export interface ForceOptions {
   /** If true, the simulation snaps to equilibrium in a few ticks rather than
@@ -98,7 +117,12 @@ export function useForceSimulation(
   // We use the joined ids as the dependency so swapping the person (which
   // changes which centre→skill links exist) reseeds the layout.
   const linkKey = initialLinks
-    .map((l) => `${typeof l.source === "string" ? l.source : l.source.id}>${typeof l.target === "string" ? l.target : l.target.id}`)
+    .map(
+      (l) =>
+        `${typeof l.source === "string" ? l.source : l.source.id}>${
+          typeof l.target === "string" ? l.target : l.target.id
+        }`
+    )
     .join(",");
   const nodeKey = initialNodes.map((n) => n.id).join(",");
 
@@ -115,16 +139,10 @@ export function useForceSimulation(
           .distance((l) => l.distance)
           .strength((l) => l.strength ?? 0.6)
       )
-      .force("centre", forceCenter(0, 0).strength(0.04))
-      .force(
-        "x",
-        forceX<TreeNode>((n) => SECTOR_ANCHOR[n.sector].x).strength(0.07)
-      )
-      .force(
-        "y",
-        forceY<TreeNode>((n) => SECTOR_ANCHOR[n.sector].y).strength(0.07)
-      )
-      .force("collide", forceCollide<TreeNode>(36));
+      // A faint global pull keeps untethered drift in check without
+      // overpowering the sector hub links.
+      .force("centre", forceCenter(0, 0).strength(0.02))
+      .force("collide", forceCollide<TreeNode>(collideRadius));
 
     if (opts.reduceMotion) {
       sim.alpha(1).alphaDecay(1).velocityDecay(1);
@@ -132,11 +150,16 @@ export function useForceSimulation(
       sim.alpha(0.9).alphaDecay(0.025).velocityDecay(0.35);
     }
 
-    // Pin the centre node at (0, 0) so the person never wanders.
+    // Pin the centre and every sector hub so visitors can't drag them
+    // and the simulation has fixed anchors to spring everything else from.
     for (const n of initialNodes) {
       if (n.kind === "centre") {
         n.fx = 0;
         n.fy = 0;
+      } else if (n.kind === "sector") {
+        const pos = SECTOR_HUB_POS[n.sector];
+        n.fx = pos.x;
+        n.fy = pos.y;
       }
     }
 
@@ -159,14 +182,15 @@ export function useForceSimulation(
     startDrag(id) {
       const sim = simRef.current;
       const n = nodesRef.current.find((x) => x.id === id);
-      if (!sim || !n || n.kind === "centre") return;
+      // Only skill nodes can be dragged — centre + sector hubs are pinned.
+      if (!sim || !n || n.kind !== "skill") return;
       sim.alphaTarget(0.3).restart();
       n.fx = n.x;
       n.fy = n.y;
     },
     drag(id, x, y) {
       const n = nodesRef.current.find((x) => x.id === id);
-      if (!n || n.kind === "centre") return;
+      if (!n || n.kind !== "skill") return;
       n.fx = x;
       n.fy = y;
     },
@@ -174,7 +198,7 @@ export function useForceSimulation(
       const sim = simRef.current;
       const n = nodesRef.current.find((x) => x.id === id);
       if (sim) sim.alphaTarget(0);
-      if (!n || n.kind === "centre") return;
+      if (!n || n.kind !== "skill") return;
       if (!pin) {
         n.fx = null;
         n.fy = null;
@@ -182,7 +206,7 @@ export function useForceSimulation(
     },
     unpinAll() {
       for (const n of nodesRef.current) {
-        if (n.kind !== "centre") {
+        if (n.kind === "skill") {
           n.fx = null;
           n.fy = null;
         }

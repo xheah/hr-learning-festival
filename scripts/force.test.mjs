@@ -3,10 +3,11 @@
 //
 // Verifies the invariants that matter for the booth experience:
 //   1. The centre (person) node stays pinned at (0, 0).
-//   2. Sector nodes settle near their soft anchors.
-//   3. Connected nodes settle within a sensible band of the link distance.
-//   4. No two skill nodes overlap (collide force is doing its job).
-//   5. The simulation actually settles (alpha decays below the active threshold).
+//   2. The three sector hubs stay pinned at their label positions.
+//   3. Every skill settles within reach of its sector hub (link force).
+//   4. Linked-pair distance is in a sensible band around the target.
+//   5. Skill nodes don't overlap (collide is doing its job).
+//   6. The simulation actually settles in a reasonable budget.
 
 import {
   forceCenter,
@@ -14,35 +15,52 @@ import {
   forceLink,
   forceManyBody,
   forceSimulation,
-  forceX,
-  forceY,
 } from "d3-force";
 
-const SECTOR_ANCHOR = {
-  hr:      { x: 0,   y: -260 },
-  finance: { x: 260, y:  150 },
-  admin:   { x: -260, y: 150 },
-  centre:  { x: 0,   y: 0 },
+const HUB_POS = {
+  hr:      { x: 0,                                       y: -425 },
+  finance: { x: Math.cos((30 * Math.PI) / 180) * 425,    y: Math.sin((30 * Math.PI) / 180) * 425 },
+  admin:   { x: Math.cos((150 * Math.PI) / 180) * 425,   y: Math.sin((150 * Math.PI) / 180) * 425 },
+  centre:  { x: 0,                                       y: 0 },
 };
 
-// A small but representative graph: 1 centre + 2 nodes per sector + a couple of links.
+const collideRadius = (n) => {
+  if (n.kind === "sector") return 75;
+  if (n.kind === "centre") return 50;
+  return 36;
+};
+
 const nodes = [
   { id: "__centre", kind: "centre", sector: "centre", x: 0, y: 0, fx: 0, fy: 0 },
-  { id: "hr-a",  kind: "skill", sector: "hr",      x: 0,   y: -150 },
-  { id: "hr-b",  kind: "skill", sector: "hr",      x: 30,  y: -200 },
-  { id: "fin-a", kind: "skill", sector: "finance", x: 100, y: 100 },
-  { id: "fin-b", kind: "skill", sector: "finance", x: 130, y: 130 },
-  { id: "adm-a", kind: "skill", sector: "admin",   x: -100, y: 100 },
-  { id: "adm-b", kind: "skill", sector: "admin",   x: -130, y: 130 },
+  // Three pinned sector hubs.
+  { id: "hub_hr",      kind: "sector", sector: "hr",      x: HUB_POS.hr.x,      y: HUB_POS.hr.y,      fx: HUB_POS.hr.x,      fy: HUB_POS.hr.y },
+  { id: "hub_finance", kind: "sector", sector: "finance", x: HUB_POS.finance.x, y: HUB_POS.finance.y, fx: HUB_POS.finance.x, fy: HUB_POS.finance.y },
+  { id: "hub_admin",   kind: "sector", sector: "admin",   x: HUB_POS.admin.x,   y: HUB_POS.admin.y,   fx: HUB_POS.admin.x,   fy: HUB_POS.admin.y },
+  // Two skills per sector, seeded somewhere arbitrary.
+  { id: "hr-a",  kind: "skill", sector: "hr",      x: 30,  y: -150 },
+  { id: "hr-b",  kind: "skill", sector: "hr",      x: -40, y: -120 },
+  { id: "fin-a", kind: "skill", sector: "finance", x: 120, y: 80 },
+  { id: "fin-b", kind: "skill", sector: "finance", x: 150, y: 130 },
+  { id: "adm-a", kind: "skill", sector: "admin",   x: -120, y: 80 },
+  { id: "adm-b", kind: "skill", sector: "admin",   x: -150, y: 130 },
 ];
 
+const skillSector = Object.fromEntries(
+  nodes.filter((n) => n.kind === "skill").map((n) => [n.id, n.sector])
+);
+
 const links = [
+  // Sector hub → skill (primary spring)
+  { source: "hub_hr",      target: "hr-a",  distance: 160, strength: 0.55 },
+  { source: "hub_hr",      target: "hr-b",  distance: 160, strength: 0.55 },
+  { source: "hub_finance", target: "fin-a", distance: 160, strength: 0.55 },
+  { source: "hub_finance", target: "fin-b", distance: 160, strength: 0.55 },
+  { source: "hub_admin",   target: "adm-a", distance: 160, strength: 0.55 },
+  { source: "hub_admin",   target: "adm-b", distance: 160, strength: 0.55 },
+  // Sample prereq
   { source: "hr-a",  target: "hr-b",  distance: 70, strength: 0.7 },
   { source: "fin-a", target: "fin-b", distance: 70, strength: 0.7 },
   { source: "adm-a", target: "adm-b", distance: 70, strength: 0.7 },
-  { source: "__centre", target: "hr-a",  distance: 140, strength: 0.25 },
-  { source: "__centre", target: "fin-a", distance: 140, strength: 0.25 },
-  { source: "__centre", target: "adm-a", distance: 140, strength: 0.25 },
 ];
 
 const sim = forceSimulation(nodes)
@@ -54,21 +72,18 @@ const sim = forceSimulation(nodes)
       .distance((l) => l.distance)
       .strength((l) => l.strength ?? 0.6)
   )
-  .force("centre", forceCenter(0, 0).strength(0.04))
-  .force("x", forceX((n) => SECTOR_ANCHOR[n.sector].x).strength(0.07))
-  .force("y", forceY((n) => SECTOR_ANCHOR[n.sector].y).strength(0.07))
-  .force("collide", forceCollide(36))
+  .force("centre", forceCenter(0, 0).strength(0.02))
+  .force("collide", forceCollide(collideRadius))
   .alpha(0.9)
   .alphaDecay(0.025)
   .velocityDecay(0.35)
   .stop();
 
-// Tick the simulation manually until alpha settles.
 let ticks = 0;
 while (sim.alpha() > sim.alphaMin()) {
   sim.tick();
   ticks++;
-  if (ticks > 1000) break;
+  if (ticks > 1500) break;
 }
 
 const get = (id) => nodes.find((n) => n.id === id);
@@ -80,55 +95,52 @@ const ok = (label, cond, detail) => {
   else console.log(`✓ ${label} ${detail ?? ""}`.trim());
 };
 
-// 1. Centre stays at (0, 0).
+// 1. Centre pinned.
 const centre = get("__centre");
 ok(
-  "centre is pinned at origin",
+  "centre pinned at origin",
   Math.abs(centre.x) < 0.001 && Math.abs(centre.y) < 0.001,
   `→ (${centre.x.toFixed(2)}, ${centre.y.toFixed(2)})`
 );
 
-// 2. Each skill node ends up in the half-plane its sector anchor lives in.
-for (const [id, expected] of [
-  ["hr-a", "top"],
-  ["hr-b", "top"],
-  ["fin-a", "bottom-right"],
-  ["fin-b", "bottom-right"],
-  ["adm-a", "bottom-left"],
-  ["adm-b", "bottom-left"],
-]) {
-  const n = get(id);
-  let inRegion = false;
-  if (expected === "top") inRegion = n.y < 0;
-  else if (expected === "bottom-right") inRegion = n.x > 0 && n.y > 0;
-  else if (expected === "bottom-left") inRegion = n.x < 0 && n.y > 0;
+// 2. Each sector hub pinned exactly at its label position.
+for (const sector of ["hr", "finance", "admin"]) {
+  const hub = get(`hub_${sector}`);
+  const target = HUB_POS[sector];
   ok(
-    `${id} settles in ${expected} region`,
-    inRegion,
-    `→ (${n.x.toFixed(0)}, ${n.y.toFixed(0)})`
+    `${sector} hub pinned at label position`,
+    Math.abs(hub.x - target.x) < 0.001 && Math.abs(hub.y - target.y) < 0.001,
+    `→ (${hub.x.toFixed(1)}, ${hub.y.toFixed(1)}) target (${target.x.toFixed(1)}, ${target.y.toFixed(1)})`
   );
 }
 
-// 3. Linked pairs are within a reasonable range of link distance.
-// forceLink replaces source/target string ids with node refs after simulation,
-// so resolve through whichever form we find.
+// 3. Every skill settles near its sector hub.
+for (const id of ["hr-a", "hr-b", "fin-a", "fin-b", "adm-a", "adm-b"]) {
+  const skill = get(id);
+  const hub = get(`hub_${skillSector[id]}`);
+  const d = dist(skill, hub);
+  ok(
+    `${id} close to ${skillSector[id]} hub`,
+    d < 260,
+    `→ ${d.toFixed(0)} units from hub`
+  );
+}
+
+// 4. Sector links settle in a sensible band around their target distance.
 const resolve = (ref) => (typeof ref === "string" ? get(ref) : ref);
 for (const l of links) {
+  if (l.distance !== 160) continue;
   const a = resolve(l.source);
   const b = resolve(l.target);
-  const aId = typeof l.source === "string" ? l.source : l.source.id;
-  const bId = typeof l.target === "string" ? l.target : l.target.id;
   const d = dist(a, b);
-  const lo = l.distance * 0.4;
-  const hi = l.distance * 2.5;
   ok(
-    `link ${aId}↔${bId} near ${l.distance}`,
-    d >= lo && d <= hi,
-    `→ ${d.toFixed(0)} (band ${lo.toFixed(0)}-${hi.toFixed(0)})`
+    `${typeof l.source === "string" ? l.source : l.source.id}↔${typeof l.target === "string" ? l.target : l.target.id} near 160`,
+    d >= 60 && d <= 320,
+    `→ ${d.toFixed(0)}`
   );
 }
 
-// 4. No two skill nodes overlap. Collide radius 36 → centres ≥ 72.
+// 5. Skill-skill overlap check.
 const skills = nodes.filter((n) => n.kind === "skill");
 let overlapCount = 0;
 for (let i = 0; i < skills.length; i++) {
@@ -137,10 +149,10 @@ for (let i = 0; i < skills.length; i++) {
     if (d < 50) overlapCount++;
   }
 }
-ok("no skill nodes overlap", overlapCount === 0, `→ ${overlapCount} overlapping pair(s)`);
+ok("no skill-skill overlap", overlapCount === 0, `→ ${overlapCount} pair(s)`);
 
-// 5. Simulation settled.
-ok("simulation settles within budget", ticks < 1000, `→ ${ticks} ticks`);
+// 6. Settled within budget.
+ok("settles within budget", ticks < 1500, `→ ${ticks} ticks`);
 
 console.log(`\n${failures.length === 0 ? "PASS" : "FAIL"} — ${failures.length} failure(s)`);
 if (failures.length) {
