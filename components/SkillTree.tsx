@@ -1,11 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { categories, getMastery, skills } from "@/lib/data";
 import { MasteryLevel, Person, Role, Skill } from "@/lib/types";
+import {
+  SECTOR_ANCHOR,
+  type TreeLink,
+  type TreeNode,
+  useForceSimulation,
+} from "@/lib/force";
 
-interface SkillNode {
+interface RadialNode {
   skill: Skill;
   x: number;
   y: number;
@@ -26,8 +32,8 @@ interface AnchorInfo {
 const WEDGE_ARC = 360 / categories.length;
 const TIER_RADII = [150, 238, 322];
 
-function buildLayout(): { nodes: SkillNode[]; anchors: AnchorInfo[] } {
-  const nodes: SkillNode[] = [];
+function buildLayout(): { nodes: RadialNode[]; anchors: AnchorInfo[] } {
+  const nodes: RadialNode[] = [];
   const anchors: AnchorInfo[] = [];
 
   categories.forEach((cat, ci) => {
@@ -73,14 +79,17 @@ interface Props {
   role?: Role | null;
   selectedSkillId?: string | null;
   onSelectSkill?: (s: Skill | null) => void;
-  /** When true the tree skips its entrance animation (used in compact / Compare view). */
+  /** When true, skip entrance + draw-in animations (used in Compare view). */
   noEntranceAnimation?: boolean;
+  /** Static radial layout (default) vs live force-directed graph. */
+  layout?: "radial" | "graph";
 }
 
 const NODE_R = 28;
 const NODE_R_SELECTED = 32;
 const ICON_SIZE = 26;
 const TOOLTIP_MARGIN = 6;
+const DRAG_THRESHOLD_PX = 4;
 
 export default function SkillTree({
   person,
@@ -88,11 +97,19 @@ export default function SkillTree({
   selectedSkillId,
   onSelectSkill,
   noEntranceAnimation,
+  layout = "radial",
 }: Props) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const { nodes, anchors } = useMemo(() => buildLayout(), []);
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  // Mastery-aware membership: have if mastery > 0
+  const { nodes: radialNodes, anchors } = useMemo(() => buildLayout(), []);
+
+  const radialBySkill = useMemo(() => {
+    const m = new Map<string, RadialNode>();
+    radialNodes.forEach((n) => m.set(n.skill.id, n));
+    return m;
+  }, [radialNodes]);
+
   const haveSet = useMemo(
     () => new Set(person.skills.filter((s) => s.level > 0).map((s) => s.id)),
     [person]
@@ -106,31 +123,126 @@ export default function SkillTree({
     [role]
   );
 
-  const nodeMap = useMemo(() => {
-    const m = new Map<string, SkillNode>();
-    nodes.forEach((n) => m.set(n.skill.id, n));
-    return m;
-  }, [nodes]);
+  // ─── Force simulation (graph mode) ─────────────────────────
+  // Built unconditionally so React hook order is stable; the hook itself
+  // skips its setup when graph mode isn't active.
+  const simNodes = useMemo<TreeNode[]>(() => {
+    const out: TreeNode[] = [
+      {
+        id: "__centre",
+        kind: "centre",
+        sector: "centre",
+        x: 0,
+        y: 0,
+        fx: 0,
+        fy: 0,
+      },
+    ];
+    for (const r of radialNodes) {
+      out.push({
+        id: r.skill.id,
+        kind: "skill",
+        sector: r.skill.category,
+        x: r.x,
+        y: r.y,
+      });
+    }
+    return out;
+  }, [radialNodes]);
 
-  /** Per-skill entrance delay (ms) — tier 1 first, then tier 2, then tier 3. */
-  const delayMap = useMemo(() => {
-    const sorted = [...nodes].sort((a, b) => a.skill.tier - b.skill.tier);
-    const m = new Map<string, number>();
-    sorted.forEach((n, i) => {
-      m.set(n.skill.id, 80 + i * 22);
-    });
-    return m;
-  }, [nodes]);
+  const simLinks = useMemo<TreeLink[]>(() => {
+    const out: TreeLink[] = [];
+    for (const r of radialNodes) {
+      for (const pid of r.skill.prerequisites ?? []) {
+        out.push({
+          source: pid,
+          target: r.skill.id,
+          distance: 70,
+          strength: 0.7,
+        });
+      }
+    }
+    for (const skillId of haveSet) {
+      out.push({
+        source: "__centre",
+        target: skillId,
+        distance: 140,
+        strength: 0.25,
+      });
+    }
+    return out;
+  }, [radialNodes, haveSet]);
 
-  const hovered = hoveredId ? nodeMap.get(hoveredId) ?? null : null;
+  const force = useForceSimulation(simNodes, simLinks);
+
+  // ─── Drag handling (graph mode) ────────────────────────────
+  const dragRef = useRef<{ id: string | null; moved: boolean; startX: number; startY: number }>(
+    { id: null, moved: false, startX: 0, startY: 0 }
+  );
+
+  const svgPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return null;
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const p = pt.matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  }, []);
+
+  // ─── Position resolver ─────────────────────────────────────
+  // Reading force.tick subscribes us to simulation ticks so React re-renders
+  // with the live positions.
+  const _tick = force.tick;
+  const getPos = (skillId: string): { x: number; y: number; angle: number } => {
+    if (layout === "graph") {
+      const n = force.nodes().find((x) => x.id === skillId);
+      if (n) {
+        const angle = (Math.atan2(n.y, n.x) * 180) / Math.PI;
+        return { x: n.x, y: n.y, angle };
+      }
+    }
+    const r = radialBySkill.get(skillId);
+    return r ? { x: r.x, y: r.y, angle: r.angle } : { x: 0, y: 0, angle: 0 };
+  };
+
+  const getCentrePos = (): { x: number; y: number } => {
+    if (layout === "graph") {
+      const c = force.nodes().find((n) => n.id === "__centre");
+      if (c) return { x: c.x, y: c.y };
+    }
+    return { x: 0, y: 0 };
+  };
+
+  const hovered = hoveredId
+    ? (() => {
+        const r = radialBySkill.get(hoveredId);
+        if (!r) return null;
+        const pos = getPos(hoveredId);
+        return {
+          skill: r.skill,
+          x: pos.x,
+          y: pos.y,
+          angle: pos.angle,
+          categoryColor: r.categoryColor,
+        };
+      })()
+    : null;
+
   const PersonIcon = person.icon;
+  const isGraph = layout === "graph";
+  const centre = getCentrePos();
 
   return (
     <svg
+      ref={svgRef}
       viewBox="-470 -470 940 940"
       className="w-full h-full select-none"
       preserveAspectRatio="xMidYMid meet"
       onClick={() => onSelectSkill?.(null)}
+      style={{ touchAction: isGraph ? "none" : undefined }}
     >
       <defs>
         <filter id="label-shadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -144,42 +256,63 @@ export default function SkillTree({
         </filter>
       </defs>
 
-      {/* Faint category wedges */}
-      {anchors.map((a) => {
-        const startAngle = a.angle - WEDGE_ARC / 2;
-        const endAngle = a.angle + WEDGE_ARC / 2;
-        const R = 360;
-        const rad1 = (startAngle * Math.PI) / 180;
-        const rad2 = (endAngle * Math.PI) / 180;
-        const largeArc = WEDGE_ARC > 180 ? 1 : 0;
-        return (
-          <path
-            key={a.id}
-            d={`M 0 0 L ${(Math.cos(rad1) * R).toFixed(1)} ${(
-              Math.sin(rad1) * R
-            ).toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${(
-              Math.cos(rad2) * R
-            ).toFixed(1)} ${(Math.sin(rad2) * R).toFixed(1)} Z`}
-            fill={a.color}
-            opacity={0.06}
-          />
-        );
-      })}
+      {/* Radial-only chrome: sector wedges + tier rings */}
+      {!isGraph && (
+        <>
+          {anchors.map((a) => {
+            const startAngle = a.angle - WEDGE_ARC / 2;
+            const endAngle = a.angle + WEDGE_ARC / 2;
+            const R = 360;
+            const rad1 = (startAngle * Math.PI) / 180;
+            const rad2 = (endAngle * Math.PI) / 180;
+            const largeArc = WEDGE_ARC > 180 ? 1 : 0;
+            return (
+              <path
+                key={a.id}
+                d={`M 0 0 L ${(Math.cos(rad1) * R).toFixed(1)} ${(
+                  Math.sin(rad1) * R
+                ).toFixed(1)} A ${R} ${R} 0 ${largeArc} 1 ${(
+                  Math.cos(rad2) * R
+                ).toFixed(1)} ${(Math.sin(rad2) * R).toFixed(1)} Z`}
+                fill={a.color}
+                opacity={0.06}
+              />
+            );
+          })}
+          {TIER_RADII.map((r) => (
+            <circle
+              key={r}
+              r={r}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={0.5}
+              opacity={0.12}
+              strokeDasharray="2 4"
+            />
+          ))}
+        </>
+      )}
 
-      {/* Tier rings */}
-      {TIER_RADII.map((r) => (
-        <circle
-          key={r}
-          r={r}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={0.5}
-          opacity={0.12}
-          strokeDasharray="2 4"
-        />
-      ))}
+      {/* Soft sector anchor dots in graph mode — barely-visible reminder of where
+       *  the simulation is pulling each sector. */}
+      {isGraph &&
+        (["hr", "finance", "admin"] as const).map((sector) => {
+          const a = SECTOR_ANCHOR[sector];
+          const cat = categories.find((c) => c.id === sector);
+          if (!cat) return null;
+          return (
+            <circle
+              key={`anchor-${sector}`}
+              cx={a.x}
+              cy={a.y}
+              r={4}
+              fill={cat.color}
+              opacity={0.2}
+            />
+          );
+        })}
 
-      {/* Sector label chips */}
+      {/* Sector label chips — same in both layouts */}
       {anchors.map((a) => {
         const r = 425;
         const rad = (a.angle * Math.PI) / 180;
@@ -221,43 +354,39 @@ export default function SkillTree({
         );
       })}
 
-      {/* Prereq edges — when both endpoints are acquired, the line "draws" in
-       *  with stroke-dashoffset animation timed to follow the destination node. */}
-      {nodes.map((n) => {
-        if (!n.skill.prerequisites) return null;
-        return n.skill.prerequisites.map((pid) => {
-          const from = nodeMap.get(pid);
+      {/* Prereq edges — endpoint positions are live in graph mode */}
+      {radialNodes.map((rn) => {
+        if (!rn.skill.prerequisites) return null;
+        return rn.skill.prerequisites.map((pid) => {
+          const from = radialBySkill.get(pid);
           if (!from) return null;
-          const haveBoth = haveSet.has(n.skill.id) && haveSet.has(pid);
-          const required = requiredSet.has(n.skill.id);
+          const haveBoth = haveSet.has(rn.skill.id) && haveSet.has(pid);
+          const required = requiredSet.has(rn.skill.id);
           const opacity = haveBoth ? 0.7 : required ? 0.35 : 0.18;
-          const mx = (from.x + n.x) * 0.45;
-          const my = (from.y + n.y) * 0.45;
-          const fromDelay = delayMap.get(from.skill.id) ?? 0;
-          const toDelay = delayMap.get(n.skill.id) ?? 0;
-          const lineDelay = Math.max(fromDelay, toDelay) + 200;
+          const a = getPos(pid);
+          const b = getPos(rn.skill.id);
+          const mx = (a.x + b.x) * 0.45;
+          const my = (a.y + b.y) * 0.45;
+          // Animation only in radial entrance — drawn-in lines would look weird
+          // mid-simulation.
+          const animateThis = !noEntranceAnimation && !isGraph && haveBoth;
           return (
             <path
-              key={`${pid}->${n.skill.id}`}
-              d={`M ${from.x.toFixed(1)} ${from.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${n.x.toFixed(1)} ${n.y.toFixed(1)}`}
-              stroke={haveBoth ? n.categoryColor : "currentColor"}
+              key={`${pid}->${rn.skill.id}`}
+              d={`M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${mx.toFixed(1)} ${my.toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`}
+              stroke={haveBoth ? rn.categoryColor : "currentColor"}
               strokeWidth={haveBoth ? 2.25 : 1}
               fill="none"
               opacity={opacity}
               strokeDasharray={haveBoth ? "" : "3 4"}
-              className={haveBoth && !noEntranceAnimation ? "line-drawn" : ""}
-              style={
-                haveBoth && !noEntranceAnimation
-                  ? { animationDelay: `${lineDelay}ms` }
-                  : undefined
-              }
+              className={animateThis ? "line-drawn" : ""}
             />
           );
         });
       })}
 
-      {/* Person at centre */}
-      <g>
+      {/* Person at centre — pinned in graph mode via fx/fy */}
+      <g transform={`translate(${centre.x.toFixed(1)} ${centre.y.toFixed(1)})`}>
         <circle r={52} fill="var(--brand)" opacity={0.18} />
         <circle r={44} fill="var(--brand)" />
         <g
@@ -290,61 +419,114 @@ export default function SkillTree({
       </g>
 
       {/* Skill nodes */}
-      {nodes.map((n) => {
-        const level = getMastery(person, n.skill.id);
+      {radialNodes.map((rn, idx) => {
+        const level = getMastery(person, rn.skill.id);
         const have = level > 0;
-        const required = requiredSet.has(n.skill.id);
-        const nice = niceSet.has(n.skill.id);
-        const isSelected = selectedSkillId === n.skill.id;
-        const isHovered = hoveredId === n.skill.id;
+        const required = requiredSet.has(rn.skill.id);
+        const nice = niceSet.has(rn.skill.id);
+        const isSelected = selectedSkillId === rn.skill.id;
+        const isHovered = hoveredId === rn.skill.id;
         const r = isSelected || isHovered ? NODE_R_SELECTED : NODE_R;
         const opacity = have ? 1 : required ? 0.95 : nice ? 0.75 : 0.5;
-        const fill = have ? n.categoryColor : "var(--bg-elev)";
+        const fill = have ? rn.categoryColor : "var(--bg-elev)";
         const strokeColor =
-          have || required || nice ? n.categoryColor : "currentColor";
+          have || required || nice ? rn.categoryColor : "currentColor";
         const strokeWidth = required && !have ? 2.75 : have ? 2.25 : 1.5;
         const iconColor = have
           ? "#ffffff"
           : required
-            ? n.categoryColor
+            ? rn.categoryColor
             : nice
-              ? n.categoryColor
+              ? rn.categoryColor
               : "currentColor";
-        const Icon = n.skill.icon;
-        const delay = delayMap.get(n.skill.id) ?? 0;
+        const Icon = rn.skill.icon;
+        const pos = getPos(rn.skill.id);
+        const animateNode = !noEntranceAnimation && !isGraph;
+
+        const handlePointerDown = (e: React.PointerEvent<SVGGElement>) => {
+          if (!isGraph) return;
+          e.stopPropagation();
+          (e.currentTarget as SVGGElement).setPointerCapture(e.pointerId);
+          dragRef.current = {
+            id: rn.skill.id,
+            moved: false,
+            startX: e.clientX,
+            startY: e.clientY,
+          };
+          force.startDrag(rn.skill.id);
+        };
+        const handlePointerMove = (e: React.PointerEvent<SVGGElement>) => {
+          if (!isGraph) return;
+          const drag = dragRef.current;
+          if (drag.id !== rn.skill.id) return;
+          if (
+            !drag.moved &&
+            Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) >
+              DRAG_THRESHOLD_PX
+          ) {
+            drag.moved = true;
+          }
+          if (drag.moved) {
+            const p = svgPoint(e.clientX, e.clientY);
+            if (p) force.drag(rn.skill.id, p.x, p.y);
+          }
+        };
+        const handlePointerUp = (e: React.PointerEvent<SVGGElement>) => {
+          if (!isGraph) {
+            // Radial mode: simple tap-to-select.
+            e.stopPropagation();
+            onSelectSkill?.(rn.skill);
+            return;
+          }
+          const drag = dragRef.current;
+          (e.currentTarget as SVGGElement).releasePointerCapture(e.pointerId);
+          if (drag.id === rn.skill.id) {
+            if (!drag.moved) {
+              // No drag — treat as tap.
+              onSelectSkill?.(rn.skill);
+              force.endDrag(rn.skill.id, { pin: false });
+            } else {
+              // Pin where dropped (Obsidian-style).
+              force.endDrag(rn.skill.id, { pin: true });
+            }
+            dragRef.current = { id: null, moved: false, startX: 0, startY: 0 };
+            e.stopPropagation();
+          }
+        };
 
         return (
           <g
-            key={n.skill.id}
-            transform={`translate(${n.x.toFixed(1)} ${n.y.toFixed(1)})`}
+            key={rn.skill.id}
+            transform={`translate(${pos.x.toFixed(1)} ${pos.y.toFixed(1)})`}
             opacity={opacity}
             onClick={(e) => {
+              // Radial uses click for tap. Graph uses pointer up.
+              if (isGraph) return;
               e.stopPropagation();
-              onSelectSkill?.(n.skill);
+              onSelectSkill?.(rn.skill);
             }}
-            onMouseEnter={() => setHoveredId(n.skill.id)}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onMouseEnter={() => setHoveredId(rn.skill.id)}
             onMouseLeave={() =>
-              setHoveredId((curr) => (curr === n.skill.id ? null : curr))
+              setHoveredId((curr) => (curr === rn.skill.id ? null : curr))
             }
             style={{
-              cursor: "pointer",
+              cursor: isGraph ? "grab" : "pointer",
               transition: "opacity 220ms ease-in-out",
             }}
           >
             <g
-              className={noEntranceAnimation ? undefined : "node-in"}
-              style={
-                noEntranceAnimation ? undefined : { animationDelay: `${delay}ms` }
-              }
+              className={animateNode ? "node-in" : undefined}
+              style={animateNode ? { animationDelay: `${80 + idx * 22}ms` } : undefined}
             >
-              {/* Bigger invisible touch target */}
               <circle r={36} fill="transparent" />
-              {/* Pulsing target ring for required-but-missing */}
               {required && !have && (
                 <circle
                   r={r + 5}
                   fill="none"
-                  stroke={n.categoryColor}
+                  stroke={rn.categoryColor}
                   strokeWidth={1.5}
                   opacity={0.55}
                 >
@@ -362,13 +544,11 @@ export default function SkillTree({
                   />
                 </circle>
               )}
-              {/* Mastery ring — sits just outside the node circle, filling as the
-               *  person progresses Practicing (33%) → Competent (66%) → Expert (100%). */}
               {have && (
                 <MasteryRing
                   r={r + 5}
                   level={level}
-                  color={n.categoryColor}
+                  color={rn.categoryColor}
                 />
               )}
               <circle
@@ -396,7 +576,6 @@ export default function SkillTree({
         );
       })}
 
-      {/* Hover tooltip */}
       {hovered && <Tooltip node={hovered} />}
     </svg>
   );
@@ -413,11 +592,10 @@ function MasteryRing({
 }) {
   if (level <= 0) return null;
   const circumference = 2 * Math.PI * r;
-  const portion = level / 3; // 1 → 33%, 2 → 66%, 3 → 100%
+  const portion = level / 3;
   const offset = circumference * (1 - portion);
   return (
     <>
-      {/* Background ring (full circle, faint) */}
       <circle
         cx={0}
         cy={0}
@@ -427,7 +605,6 @@ function MasteryRing({
         strokeWidth={3}
         opacity={0.18}
       />
-      {/* Mastery progress */}
       <circle
         cx={0}
         cy={0}
@@ -449,7 +626,13 @@ function MasteryRing({
 }
 
 interface TooltipProps {
-  node: SkillNode;
+  node: {
+    skill: Skill;
+    x: number;
+    y: number;
+    angle: number;
+    categoryColor: string;
+  };
 }
 
 function Tooltip({ node }: TooltipProps) {
@@ -486,9 +669,6 @@ function Tooltip({ node }: TooltipProps) {
           fill={node.categoryColor}
           opacity={0.97}
         />
-        {/* Dark legible text — using #1a1310 keeps contrast ≥ 4:1 on every
-         *  sector colour (white was unreadable over the Finance teal and
-         *  Admin honey hues). */}
         <text
           x={0}
           y={5}
