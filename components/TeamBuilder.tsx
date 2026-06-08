@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Plus,
+  Sparkles,
+} from "lucide-react";
 import { people, roles, skillsById, categoryById } from "@/lib/data";
 import { coverage, suggestTeam } from "@/lib/team";
 import { Person, Role } from "@/lib/types";
@@ -30,9 +38,9 @@ export default function TeamBuilder() {
     const required = new Set(role.requiredSkillIds);
     return [...people]
       .map((p) => {
-        const cover = p.skillIds.filter((s) => required.has(s)).length;
-        const unique = p.skillIds.filter(
-          (s) => required.has(s) && !coveredIds.has(s)
+        const cover = p.skills.filter((s) => required.has(s.id)).length;
+        const unique = p.skills.filter(
+          (s) => required.has(s.id) && !coveredIds.has(s.id)
         ).length;
         return { person: p, cover, unique, selected: teamIds.has(p.id) };
       })
@@ -49,24 +57,7 @@ export default function TeamBuilder() {
         <div className="text-xs uppercase tracking-wide opacity-65 mb-2">
           Project goal · pick a role to staff
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 snap-x">
-          {roles.map((r) => {
-            const active = r.id === role.id;
-            return (
-              <button
-                key={r.id}
-                onClick={() => selectRole(r)}
-                className={`flex-shrink-0 snap-start rounded-full px-4 py-2 text-sm border transition ${
-                  active
-                    ? "border-brand-500 bg-brand-500 text-white shadow"
-                    : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-brand-400"
-                }`}
-              >
-                {r.title}
-              </button>
-            );
-          })}
-        </div>
+        <RoleScroller roles={roles} activeId={role.id} onSelect={selectRole} />
       </div>
 
       <div className="rounded-2xl border border-[var(--line)] bg-[var(--bg-elev)] p-4">
@@ -75,13 +66,13 @@ export default function TeamBuilder() {
             <div className="text-sm font-semibold">{role.title}</div>
             <div className="text-xs opacity-70 mt-0.5">{role.description}</div>
           </div>
-          <div className="text-sm font-bold text-brand-600 dark:text-brand-300">
+          <div className="text-sm font-bold text-lavender-700 dark:text-lavender-200">
             {Math.round(pct * 100)}%
           </div>
         </div>
         <div className="mt-3 h-2 rounded-full bg-[var(--bg)] overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-lavender-400 to-lavender-600 transition-all duration-500"
             style={{ width: `${Math.round(pct * 100)}%` }}
           />
         </div>
@@ -91,18 +82,24 @@ export default function TeamBuilder() {
             if (!s) return null;
             const cov = coveredIds.has(id);
             const cat = categoryById[s.category];
+            const Icon = s.icon;
             return (
               <div
                 key={id}
-                className={`text-[11px] px-2 py-1 rounded-full flex items-center gap-1 border ${
+                title={s.name}
+                className={`text-[11px] px-2 py-1 rounded-full flex items-center gap-1.5 border ${
                   cov
                     ? "border-transparent"
                     : "border-dashed border-[var(--line)] opacity-65"
                 }`}
                 style={cov ? { background: cat.color + "22", color: cat.color } : {}}
               >
-                <span>{cov ? "✓" : "○"}</span>
-                <span>{s.icon}</span>
+                {cov ? (
+                  <Check size={11} strokeWidth={3} />
+                ) : (
+                  <Circle size={9} strokeWidth={2} />
+                )}
+                <Icon size={12} strokeWidth={2.25} />
                 <span>{s.name}</span>
               </div>
             );
@@ -115,8 +112,9 @@ export default function TeamBuilder() {
           </div>
         )}
         {missing.length === 0 && (
-          <div className="mt-3 text-xs font-medium text-green-600 dark:text-green-400">
-            ✨ Every required skill is covered by this team.
+          <div className="mt-3 text-xs font-medium text-green-600 dark:text-green-400 inline-flex items-center gap-1.5">
+            <Sparkles size={13} strokeWidth={2.5} />
+            <span>Every required skill is covered by this team.</span>
           </div>
         )}
       </div>
@@ -126,48 +124,143 @@ export default function TeamBuilder() {
           Tap to add or remove people · suggested team auto-loaded
         </div>
         <div className="space-y-2">
-          {ranked.map(({ person: p, cover, unique, selected }) => (
-            <button
-              key={p.id}
-              onClick={() => toggle(p)}
-              className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition active:scale-[0.99] ${
-                selected
-                  ? "border-brand-500 bg-brand-50 dark:bg-brand-950 shadow-md shadow-brand-500/10"
-                  : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-brand-400"
-              }`}
-            >
-              <div
-                className={`h-11 w-11 rounded-full grid place-items-center text-2xl flex-shrink-0 ${
-                  selected ? "bg-brand-500/20" : "bg-[var(--bg)]"
-                }`}
-              >
-                {p.avatar}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold truncate">{p.name}</div>
-                <div className="text-[11px] opacity-70 truncate">{p.currentRole}</div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-xs font-bold text-brand-600 dark:text-brand-300">
-                  +{selected ? cover : unique}
-                </div>
-                <div className="text-[10px] opacity-65">
-                  {selected ? "covers" : "would add"}
-                </div>
-              </div>
-              <div
-                className={`h-6 w-6 rounded-full grid place-items-center text-xs font-bold ${
+          {ranked.map(({ person: p, cover, unique, selected }) => {
+            const Icon = p.icon;
+            return (
+              <button
+                key={p.id}
+                onClick={() => toggle(p)}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl border text-left transition active:scale-[0.99] ${
                   selected
-                    ? "bg-brand-500 text-white"
-                    : "border border-[var(--line)] opacity-40"
+                    ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950 shadow-md shadow-lavender-500/10"
+                    : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
                 }`}
               >
-                {selected ? "✓" : "+"}
-              </div>
-            </button>
-          ))}
+                <div
+                  className={`h-11 w-11 rounded-full grid place-items-center flex-shrink-0 ${
+                    selected
+                      ? "bg-lavender-500/20 text-lavender-700 dark:text-lavender-200"
+                      : "bg-[var(--bg)]"
+                  }`}
+                >
+                  <Icon size={22} strokeWidth={2.25} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold truncate">{p.name}</div>
+                  <div className="text-[11px] opacity-70 truncate">{p.currentRole}</div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-xs font-bold text-lavender-700 dark:text-lavender-200">
+                    +{selected ? cover : unique}
+                  </div>
+                  <div className="text-[10px] opacity-65">
+                    {selected ? "covers" : "would add"}
+                  </div>
+                </div>
+                <div
+                  className={`h-6 w-6 rounded-full grid place-items-center ${
+                    selected
+                      ? "bg-lavender-500 text-white"
+                      : "border border-[var(--line)] opacity-40"
+                  }`}
+                >
+                  {selected ? (
+                    <Check size={13} strokeWidth={3} />
+                  ) : (
+                    <Plus size={13} strokeWidth={2.75} />
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Role scroller ────────────────────────────────────────────────────────
+// Horizontal scroller for role pills with arrow buttons instead of a native
+// scrollbar. Arrows fade out at the scroll edges so visitors know when
+// there's nothing more to reveal.
+
+interface RoleScrollerProps {
+  roles: Role[];
+  activeId: string;
+  onSelect: (r: Role) => void;
+}
+
+function RoleScroller({ roles, activeId, onSelect }: RoleScrollerProps) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const updateEdges = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 2);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    updateEdges();
+    el.addEventListener("scroll", updateEdges, { passive: true });
+    const ro = new ResizeObserver(updateEdges);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateEdges);
+      ro.disconnect();
+    };
+  }, []);
+
+  const scrollBy = (dx: number) => {
+    trackRef.current?.scrollBy({ left: dx, behavior: "smooth" });
+  };
+
+  // gap-2.5 = 10px between each arrow button and the role track.
+  return (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={() => scrollBy(-220)}
+        disabled={!canLeft}
+        aria-label="Scroll roles left"
+        className="flex-shrink-0 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:border-lavender-400"
+      >
+        <ChevronLeft size={18} strokeWidth={2.25} />
+      </button>
+      <div
+        ref={trackRef}
+        className="flex-1 min-w-0 overflow-x-auto hide-scrollbar"
+      >
+        <div className="flex gap-2 py-1">
+          {roles.map((r) => {
+            const active = r.id === activeId;
+            return (
+              <button
+                key={r.id}
+                onClick={() => onSelect(r)}
+                className={`flex-shrink-0 rounded-full px-4 py-2 text-sm border transition ${
+                  active
+                    ? "border-lavender-500 bg-lavender-500 text-white shadow"
+                    : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
+                }`}
+              >
+                {r.title}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <button
+        onClick={() => scrollBy(220)}
+        disabled={!canRight}
+        aria-label="Scroll roles right"
+        className="flex-shrink-0 h-9 w-9 rounded-full border border-[var(--line)] bg-[var(--bg-elev)] grid place-items-center shadow-sm transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:border-lavender-400"
+      >
+        <ChevronRight size={18} strokeWidth={2.25} />
+      </button>
     </div>
   );
 }

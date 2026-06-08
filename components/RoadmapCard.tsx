@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, Check, PartyPopper, Sparkles } from "lucide-react";
 import { getSkillGap } from "@/lib/data";
 import { Person, Role } from "@/lib/types";
 
@@ -11,6 +12,7 @@ interface Props {
 export default function RoadmapCard({ person, role }: Props) {
   const { acquired, missing, niceMissing, readiness } = getSkillGap(person, role);
   const pct = Math.round(readiness * 100);
+  const PersonIcon = person.icon;
 
   return (
     <div
@@ -27,8 +29,8 @@ export default function RoadmapCard({ person, role }: Props) {
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="h-14 w-14 rounded-2xl bg-brand-500 text-white grid place-items-center text-3xl shadow-lg">
-            {person.avatar}
+          <div className="h-14 w-14 rounded-2xl bg-brand-500 text-white grid place-items-center shadow-lg">
+            <PersonIcon size={28} strokeWidth={2.25} />
           </div>
           <div>
             <div className="text-xl font-bold leading-tight">{person.name}</div>
@@ -55,19 +57,23 @@ export default function RoadmapCard({ person, role }: Props) {
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white/65 dark:bg-black/20 p-3 border border-[var(--line)]">
-            <div className="text-[10px] uppercase tracking-wide opacity-65 mb-1.5">
-              ✓ Already in your tree
+            <div className="text-[10px] uppercase tracking-wide opacity-65 mb-1.5 flex items-center gap-1">
+              <Check size={11} strokeWidth={2.75} />
+              <span>Already in your tree</span>
             </div>
             <div className="space-y-1">
               {acquired.length === 0 && (
                 <div className="text-xs opacity-60">Starting fresh!</div>
               )}
-              {acquired.slice(0, 5).map((s) => (
-                <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-sm">{s.icon}</span>
-                  <span className="truncate">{s.name}</span>
-                </div>
-              ))}
+              {acquired.slice(0, 5).map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                    <Icon size={14} strokeWidth={2.25} />
+                    <span className="truncate">{s.name}</span>
+                  </div>
+                );
+              })}
               {acquired.length > 5 && (
                 <div className="text-[10px] opacity-60">
                   + {acquired.length - 5} more
@@ -76,21 +82,26 @@ export default function RoadmapCard({ person, role }: Props) {
             </div>
           </div>
           <div className="rounded-2xl bg-white/65 dark:bg-black/20 p-3 border border-[var(--line)]">
-            <div className="text-[10px] uppercase tracking-wide opacity-65 mb-1.5">
-              → Next to learn
+            <div className="text-[10px] uppercase tracking-wide opacity-65 mb-1.5 flex items-center gap-1">
+              <ArrowRight size={11} strokeWidth={2.75} />
+              <span>Next to learn</span>
             </div>
             <div className="space-y-1">
               {missing.length === 0 && (
-                <div className="text-xs text-green-600 dark:text-green-400 font-medium">
-                  You're ready! 🎉
+                <div className="text-xs text-green-600 dark:text-green-400 font-medium inline-flex items-center gap-1">
+                  <PartyPopper size={12} strokeWidth={2.5} />
+                  <span>You're ready!</span>
                 </div>
               )}
-              {missing.slice(0, 5).map((s) => (
-                <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-sm">{s.icon}</span>
-                  <span className="truncate">{s.name}</span>
-                </div>
-              ))}
+              {missing.slice(0, 5).map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                    <Icon size={14} strokeWidth={2.25} />
+                    <span className="truncate">{s.name}</span>
+                  </div>
+                );
+              })}
               {missing.length > 5 && (
                 <div className="text-[10px] opacity-60">
                   + {missing.length - 5} more
@@ -101,18 +112,27 @@ export default function RoadmapCard({ person, role }: Props) {
         </div>
 
         {niceMissing.length > 0 && (
-          <div className="mt-3 text-[11px] opacity-70">
-            <span className="font-semibold">Bonus picks: </span>
-            {niceMissing
-              .slice(0, 3)
-              .map((s) => `${s.icon} ${s.name}`)
-              .join(" · ")}
+          <div className="mt-3 text-[11px] opacity-70 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-semibold">Bonus picks:</span>
+            {niceMissing.slice(0, 3).map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <span key={s.id} className="inline-flex items-center gap-1">
+                  {i > 0 && <span className="opacity-40">·</span>}
+                  <Icon size={12} strokeWidth={2.25} />
+                  <span>{s.name}</span>
+                </span>
+              );
+            })}
           </div>
         )}
 
         <div className="mt-5 pt-4 border-t border-[var(--line)] flex items-center justify-between text-[10px] opacity-65">
           <span>Generated at the HR Learning Festival booth</span>
-          <span>Screenshot to keep ✨</span>
+          <span className="inline-flex items-center gap-1">
+            <span>Screenshot to keep</span>
+            <Sparkles size={11} strokeWidth={2.5} />
+          </span>
         </div>
       </div>
     </div>

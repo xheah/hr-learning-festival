@@ -3,21 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --bg: #f8f7ff;
+  --bg: #faf8f6;
   --bg-elev: #ffffff;
-  --text: #1a1730;
-  --text-soft: #5a5478;
-  --line: #e5e0f5;
-  --brand: #6429f5;
+  --text: #1f1a1a;
+  --text-soft: #5a5454;
+  --line: #c5cbd3; /* Pale Slate */
+  --brand: #bb342f; /* Tomato Jam */
 }
 
 .dark {
-  --bg: #0c0a1a;
-  --bg-elev: #161333;
-  --text: #f3f1ff;
-  --text-soft: #b3acd9;
-  --line: #2a224a;
-  --brand: #9276ff;
+  --bg: #181314;
+  --bg-elev: #221b1d;
+  --text: #f4ecec;
+  --text-soft: #b8a7a7;
+  --line: #3a2f30;
+  --brand: #e8736c;
 }
 
 html,
@@ -32,9 +32,74 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Skill node hover ring */
-.skill-glow {
-  filter: drop-shadow(0 0 8px rgba(146, 118, 255, 0.55));
+/* Skill circles smoothly transition size + style on hover.
+ * Default filter is a transparent drop-shadow so the transition to the
+ * hovered .skill-glow state interpolates rather than snapping. */
+.skill-circle {
+  filter: drop-shadow(0 0 0 rgba(187, 52, 47, 0));
+  transition:
+    r 220ms ease-in-out,
+    stroke-width 220ms ease-in-out,
+    fill 220ms ease-in-out,
+    stroke 220ms ease-in-out,
+    filter 220ms ease-in-out;
+}
+
+.skill-circle.skill-glow {
+  filter: drop-shadow(0 0 10px rgba(187, 52, 47, 0.55));
+}
+
+/* Tooltip pop-in: smooth ease-in-out for both opacity and a subtle scale */
+@keyframes tooltipPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tooltip-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tooltipPop 180ms ease-in-out both;
+}
+
+/* Skill node entrance — staggered pop-in from the centre outward */
+@keyframes nodeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.node-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nodeIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Prereq line — drawn in stroke as the dependency settles into place */
+@keyframes drawLine {
+  from {
+    stroke-dashoffset: 500;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.line-drawn {
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  animation: drawLine 900ms ease-out forwards;
 }
 
 /* Compact scrollbar on mobile */
@@ -43,6 +108,15 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(116, 73, 255, 0.35);
+  background: rgba(141, 106, 159, 0.35); /* lavender */
   border-radius: 3px;
+}
+
+/* Hide scrollbars on opted-in containers (e.g. arrow-driven horizontal scrollers) */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

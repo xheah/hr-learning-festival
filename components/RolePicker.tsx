@@ -15,7 +15,7 @@ export default function RolePicker({ roles, selectedId, onSelect }: Props) {
         onClick={() => onSelect(null)}
         className={`w-full rounded-xl border p-3 text-left transition ${
           !selectedId
-            ? "border-brand-500 bg-brand-50 dark:bg-brand-950"
+            ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950"
             : "border-[var(--line)] bg-[var(--bg-elev)]"
         }`}
       >
@@ -32,8 +32,8 @@ export default function RolePicker({ roles, selectedId, onSelect }: Props) {
             onClick={() => onSelect(r)}
             className={`w-full rounded-xl border p-3 text-left transition active:scale-[0.99] ${
               isSelected
-                ? "border-brand-500 bg-brand-50 dark:bg-brand-950 shadow-lg shadow-brand-500/10"
-                : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-brand-400"
+                ? "border-lavender-500 bg-lavender-50 dark:bg-lavender-950 shadow-lg shadow-lavender-500/10"
+                : "border-[var(--line)] bg-[var(--bg-elev)] hover:border-lavender-400"
             }`}
           >
             <div className="flex items-baseline justify-between gap-2">
