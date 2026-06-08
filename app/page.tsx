@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Compass,
+  LayoutGrid,
+  Network,
   PartyPopper,
   RotateCcw,
   Sparkles,
@@ -28,6 +30,8 @@ import PdfDownload from "@/components/PdfDownload";
 
 type Mode = "explorer" | "team" | "compare";
 type View = "tree" | "roadmap";
+type LayoutMode = "radial" | "graph";
+const LAYOUT_STORAGE_KEY = "skilltree.layout.v1";
 
 export default function Page() {
   const {
@@ -48,6 +52,16 @@ export default function Page() {
   const [pickingPerson, setPickingPerson] = useState(false);
   const [creatingPerson, setCreatingPerson] = useState(false);
   const [isKiosk, setIsKiosk] = useState(false);
+  const [treeLayout, setTreeLayoutInner] = useState<LayoutMode>("radial");
+
+  const setTreeLayout = (next: LayoutMode) => {
+    setTreeLayoutInner(next);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(LAYOUT_STORAGE_KEY, next);
+      } catch {}
+    }
+  };
 
   // Read URL params on initial load (for QR deep links, kiosk mode).
   useEffect(() => {
@@ -63,6 +77,10 @@ export default function Page() {
     }
     const v = params.get("view");
     if (v === "roadmap") setView("roadmap");
+    try {
+      const stored = localStorage.getItem(LAYOUT_STORAGE_KEY);
+      if (stored === "radial" || stored === "graph") setTreeLayoutInner(stored);
+    } catch {}
   }, []);
 
   // After hydration, pick a sensible default person if none chosen yet.
@@ -151,6 +169,8 @@ export default function Page() {
             onSelectSkill={setSelectedSkill}
             selectedSkill={selectedSkill}
             onSeeRoadmap={() => setView("roadmap")}
+            treeLayout={treeLayout}
+            onChangeTreeLayout={setTreeLayout}
           />
         )}
 
@@ -301,6 +321,8 @@ interface ExplorerProps {
   onSelectSkill: (s: Skill | null) => void;
   selectedSkill: Skill | null;
   onSeeRoadmap: () => void;
+  treeLayout: LayoutMode;
+  onChangeTreeLayout: (l: LayoutMode) => void;
 }
 
 function ExplorerView({
@@ -312,6 +334,8 @@ function ExplorerView({
   onSelectSkill,
   selectedSkill,
   onSeeRoadmap,
+  treeLayout,
+  onChangeTreeLayout,
 }: ExplorerProps) {
   const pct = gap ? Math.round(gap.readiness * 100) : null;
   const PersonIcon = person.icon;
@@ -373,17 +397,57 @@ function ExplorerView({
         )}
       </button>
 
-      {/* Tree — re-key on person to re-trigger the entrance animation */}
+      {/* Tree — re-key on person *and* layout so the entrance animation /
+       *  simulation re-seeds cleanly when either changes. */}
       <div className="relative rounded-3xl border border-[var(--line)] bg-[var(--bg-elev)] overflow-hidden">
         <div className="aspect-square w-full">
           <SkillTree
-            key={person.id}
+            key={`${person.id}-${treeLayout}`}
             person={person}
             role={role}
             selectedSkillId={selectedSkill?.id ?? null}
             onSelectSkill={onSelectSkill}
+            layout={treeLayout}
           />
         </div>
+
+        {/* Layout toggle pill — top-right corner */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--bg)]/90 backdrop-blur p-0.5 text-[11px] shadow-sm">
+          <button
+            data-testid="layout-toggle-radial"
+            onClick={() => onChangeTreeLayout("radial")}
+            aria-pressed={treeLayout === "radial"}
+            className={`px-2 py-1 rounded-full inline-flex items-center gap-1 transition ${
+              treeLayout === "radial"
+                ? "bg-lavender-500 text-white font-semibold"
+                : "opacity-75 hover:opacity-100"
+            }`}
+          >
+            <LayoutGrid size={12} strokeWidth={2.5} />
+            <span>Radial</span>
+          </button>
+          <button
+            data-testid="layout-toggle-graph"
+            onClick={() => onChangeTreeLayout("graph")}
+            aria-pressed={treeLayout === "graph"}
+            className={`px-2 py-1 rounded-full inline-flex items-center gap-1 transition ${
+              treeLayout === "graph"
+                ? "bg-lavender-500 text-white font-semibold"
+                : "opacity-75 hover:opacity-100"
+            }`}
+          >
+            <Network size={12} strokeWidth={2.5} />
+            <span>Graph</span>
+          </button>
+        </div>
+
+        {/* Drag-hint chip — graph mode only */}
+        {treeLayout === "graph" && (
+          <div className="absolute top-12 right-2 text-[10px] px-2 py-1 rounded-full bg-[var(--bg)]/90 backdrop-blur border border-[var(--line)] opacity-75 pointer-events-none">
+            Drag any node
+          </div>
+        )}
+
         <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] opacity-75 pointer-events-none">
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-brand-500" />
